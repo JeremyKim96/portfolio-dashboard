@@ -2,9 +2,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# 데이터 폴더 (사용자가 직접 관리하는 파일들 — portfolio.xlsx, snapshots.csv 등)
-# 코드와 분리하여 사용자 데스크탑의 자산 관리 폴더에 위치.
-DATA_DIR = Path(r"C:\Users\ksw96\Desktop\승환 자산 관리\Claude")
+# 데이터 폴더 = 프로젝트 루트 (코드·데이터를 한 폴더에서 관리).
+# 위치: C:\Users\ksw96\Desktop\승환 자산 관리\Claude
+DATA_DIR = ROOT
 SHINHAN_DIR = DATA_DIR / "shinhan"  # 레거시 (현재 미사용)
 PORTFOLIO_XLSX = DATA_DIR / "portfolio.xlsx"
 HISTORY_DIR = DATA_DIR / "history"

@@ -15,6 +15,11 @@ tunnel.log
 tunnel2.log
 gh_auth.log
 
+# 사용자 입력 데이터 (금융 데이터 — 공개 저장소에 절대 올리지 않음)
+portfolio.xlsx
+history/
+shinhan/
+
 # 비밀키 — 절대 커밋 금지 (이게 노출되면 암호문이 풀림)
 cloud_data/encrypt.key
 
