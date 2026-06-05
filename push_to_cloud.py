@@ -35,7 +35,8 @@ def main() -> int:
         return 1
 
     # 3) commit + push (암호문 .enc 만 — 공개 저장소에 올라가도 안전)
-    run(["git", "add", "cloud_data/portfolio_data.enc"])
+    #    .enc 는 gitignore 부정규칙 이슈로 일반 add 가 안 먹어 -f(강제) 사용
+    run(["git", "add", "-f", "cloud_data/portfolio_data.enc"])
     msg = f"data update {datetime.now():%Y-%m-%d %H:%M}"
     code, out = run(["git", "commit", "-m", msg])
     if code != 0 and "nothing to commit" in out:
