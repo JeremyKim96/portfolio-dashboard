@@ -45,6 +45,24 @@ from core.tunnel import public_url, tunnel_log_mtime
 
 st.set_page_config(page_title="내 포트폴리오", page_icon="📊", layout="wide")
 
+# ── 모든 Plotly 차트에서 툴바(확대/이동/캡처 등) 숨기고 드래그 줌 비활성화 ──
+_PLOTLY_CONFIG = {"displayModeBar": False, "scrollZoom": False,
+                  "staticPlot": False, "doubleClick": False}
+_orig_plotly_chart = st.plotly_chart
+
+
+def _plotly_chart(fig, *args, **kwargs):
+    kwargs.setdefault("config", _PLOTLY_CONFIG)
+    try:
+        fig.update_layout(dragmode=False)  # 드래그 줌/패닝 끔 (호버 툴팁은 유지)
+    except Exception:
+        pass
+    return _orig_plotly_chart(fig, *args, **kwargs)
+
+
+st.plotly_chart = _plotly_chart
+
+
 def _get_password() -> str:
     """비밀번호: Streamlit secrets(APP_PASSWORD) 우선, 없으면 1996."""
     try:
@@ -1097,29 +1115,17 @@ def main() -> None:
     s = summary(all_rows_agg)
     invest_rows = all_rows_agg[all_rows_agg["분류"].isin([ASSET_STOCK, ASSET_COIN])]
 
-    # 시장·리스크 데이터
+    # 시장 데이터 (헤더용 — 가벼운 것만 먼저). 뉴스·버블은 시장 탭에서 계산.
     market_data = get_market_dashboard()
     vix_price = market_data.get("vix", {}).get("price") if market_data else None
     regime = get_market_regime("^GSPC")
     temp = market_temperature(vix_price, regime.get("status", "")) if regime else {}
     fg = get_fear_and_greed()
-    news_items = get_market_news(10)
 
     fs = family_summary(family_df, float(s.get("total_eval", 0)))
 
     lev = weighted_leverage(invest_rows)
     lr = leverage_ratio(s)
-
-    # AI/반도체 집중도 (버블 판독기 개인화 입력)
-    ai_share = 0.0
-    if not invest_rows.empty:
-        inv_total = float(invest_rows["평가금액"].sum())
-        if inv_total > 0 and "자산버킷" in invest_rows.columns:
-            ai_mask = invest_rows["자산버킷"].astype(str).str.contains("AI|반도체|빅테크", regex=True)
-            ai_share = float(invest_rows[ai_mask]["평가금액"].sum()) / inv_total
-    bubble = compute_bubble_index(fg, news_items, vix_price,
-                                  portfolio_ai_share=ai_share,
-                                  portfolio_leverage=lev.get("weighted", 1.0))
 
     # 스냅샷 자동 저장 (로컬에서만 — 클라우드는 읽기 전용)
     if not cloud:
@@ -1166,10 +1172,22 @@ def main() -> None:
         st.divider()
         render_top_and_pnl(invest_rows)
 
-    # ===== 🌐 시장 =====
+    # ===== 🌐 시장 (무거운 뉴스·버블은 이 탭에서만 계산 → 첫 로딩 속도 개선) =====
     with tab_market:
         render_market_context()
         st.divider()
+        with st.spinner("시장 분석 불러오는 중…"):
+            news_items = get_market_news(10)
+            ai_share = 0.0
+            if not invest_rows.empty:
+                inv_total = float(invest_rows["평가금액"].sum())
+                if inv_total > 0 and "자산버킷" in invest_rows.columns:
+                    ai_mask = invest_rows["자산버킷"].astype(str).str.contains(
+                        "AI|반도체|빅테크", regex=True)
+                    ai_share = float(invest_rows[ai_mask]["평가금액"].sum()) / inv_total
+            bubble = compute_bubble_index(fg, news_items, vix_price,
+                                          portfolio_ai_share=ai_share,
+                                          portfolio_leverage=lev.get("weighted", 1.0))
         render_bubble(bubble)
         st.divider()
         render_fear_greed_detail(fg)
