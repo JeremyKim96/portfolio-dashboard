@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 옛 코드 아카이브 (클라우드에 불필요)
+_archive_old/
+
+# 에디터/로컬 설정
+.claude/
+
+# 로컬 전용 (클라우드에 올리지 않음)
+tunnel.log
+tunnel2.log
+gh_auth.log
+
+# 금융 데이터 — 사용자가 push_to_cloud.bat 로 직접 업로드 (git add -f)
+# AI 에이전트가 대량 업로드하지 않도록 기본 무시
+cloud_data/portfolio_data.json
+data/
+cloud_data/dashboard_test.html
+
+# OS
+Thumbs.db
+.DS_Store
+
+# 도구 (대용량 바이너리 — 클라우드에 불필요)
+tools/cloudflared.exe
+
+# 비밀 (로컬 secrets)
+.streamlit/secrets.toml
