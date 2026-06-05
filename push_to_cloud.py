@@ -22,10 +22,10 @@ def run(cmd: list[str]) -> tuple[int, str]:
 
 
 def main() -> int:
-    # 1) 데이터 export
+    # 1) 데이터 export (암호화)
     from core.datasource import export_bundle
     path = export_bundle()
-    print(f"[1/3] 데이터 생성 완료: {path.name} ({path.stat().st_size:,} bytes)")
+    print(f"[1/3] 암호화 데이터 생성: {path.name} ({path.stat().st_size:,} bytes)")
 
     # 2) git 존재 확인
     code, _ = run(["git", "rev-parse", "--is-inside-work-tree"])
@@ -34,8 +34,8 @@ def main() -> int:
         print("       클로드에게 '클라우드 배포 설정'을 요청하세요.")
         return 1
 
-    # 3) commit + push (데이터 파일은 .gitignore 되어 있으므로 -f 로 강제 추가)
-    run(["git", "add", "-f", "cloud_data/portfolio_data.json"])
+    # 3) commit + push (암호문 .enc 만 — 공개 저장소에 올라가도 안전)
+    run(["git", "add", "cloud_data/portfolio_data.enc"])
     msg = f"data update {datetime.now():%Y-%m-%d %H:%M}"
     code, out = run(["git", "commit", "-m", msg])
     if code != 0 and "nothing to commit" in out:

@@ -19,7 +19,29 @@ import pandas as pd
 from .config import RAW_DIR, ROOT
 
 CLOUD_DATA_DIR = ROOT / "cloud_data"
-BUNDLE_PATH = CLOUD_DATA_DIR / "portfolio_data.json"
+BUNDLE_PATH = CLOUD_DATA_DIR / "portfolio_data.json"   # 평문 (로컬 폴백)
+ENC_PATH = CLOUD_DATA_DIR / "portfolio_data.enc"       # 암호문 (공개 저장소에 올림)
+KEY_FILE = CLOUD_DATA_DIR / "encrypt.key"              # 로컬 비밀키 (gitignore)
+
+
+def _encrypt_key() -> bytes | None:
+    """대칭 암호화 키. 클라우드는 st.secrets[ENCRYPT_KEY], 로컬은 encrypt.key 파일."""
+    # 1) 클라우드: Streamlit secrets
+    try:
+        import streamlit as st
+        k = st.secrets.get("ENCRYPT_KEY")
+        if k:
+            return k.encode() if isinstance(k, str) else k
+    except Exception:
+        pass
+    # 2) 환경변수
+    k = os.environ.get("ENCRYPT_KEY")
+    if k:
+        return k.encode()
+    # 3) 로컬 키 파일
+    if KEY_FILE.exists():
+        return KEY_FILE.read_text(encoding="utf-8").strip().encode()
+    return None
 
 
 def is_cloud() -> bool:
@@ -91,7 +113,11 @@ def _df_from_json(s: str, datetime_cols: list[str] | None = None) -> pd.DataFram
 
 
 def export_bundle() -> Path:
-    """로컬 데이터를 cloud_data/portfolio_data.json 으로 저장. (PC에서 실행)"""
+    """로컬 데이터를 암호화하여 cloud_data/portfolio_data.enc 로 저장. (PC에서 실행)
+
+    공개 저장소에 올라가도 안전하도록 Fernet 대칭 암호화. 키는 encrypt.key(로컬)
+    와 Streamlit secrets[ENCRYPT_KEY](클라우드)가 동일해야 복호화 가능.
+    """
     data = build_local_data()
     CLOUD_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -111,19 +137,44 @@ def export_bundle() -> Path:
             "account_hist": _df_to_json(data["account_hist"]),
             "snapshots": _df_to_json(data["snapshots"]),
         }
-    BUNDLE_PATH.write_text(json.dumps(bundle, ensure_ascii=False, indent=0),
-                           encoding="utf-8")
-    return BUNDLE_PATH
+
+    raw = json.dumps(bundle, ensure_ascii=False).encode("utf-8")
+    key = _encrypt_key()
+    if not key:
+        raise RuntimeError(
+            "암호화 키 없음 — cloud_data/encrypt.key 파일이 필요합니다. "
+            "클로드에게 '비밀키 재생성'을 요청하세요."
+        )
+    from cryptography.fernet import Fernet
+    token = Fernet(key).encrypt(raw)
+    ENC_PATH.write_bytes(token)
+    return ENC_PATH
 
 
 # ---------- 클라우드: JSON 번들 로드 ----------
 
 def load_bundle() -> dict:
-    if not BUNDLE_PATH.exists():
-        return {"empty": True, "source": "cloud",
-                "raw_meta": {"name": None, "folder": "(클라우드)", "mtime": None}}
+    empty_result = {"empty": True, "source": "cloud",
+                    "raw_meta": {"name": None, "folder": "(클라우드)", "mtime": None}}
 
-    bundle = json.loads(BUNDLE_PATH.read_text(encoding="utf-8"))
+    bundle = None
+    # 1) 암호문 우선 (공개 저장소 방식)
+    if ENC_PATH.exists():
+        key = _encrypt_key()
+        if not key:
+            return {**empty_result, "decrypt_error": "ENCRYPT_KEY 미설정"}
+        try:
+            from cryptography.fernet import Fernet
+            raw = Fernet(key).decrypt(ENC_PATH.read_bytes())
+            bundle = json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            return {**empty_result, "decrypt_error": f"복호화 실패: {e}"}
+    # 2) 평문 폴백
+    elif BUNDLE_PATH.exists():
+        bundle = json.loads(BUNDLE_PATH.read_text(encoding="utf-8"))
+
+    if bundle is None:
+        return empty_result
     if bundle.get("empty"):
         return {"empty": True, "source": "cloud",
                 "raw_meta": {"name": None, "folder": "(클라우드)", "mtime": None}}

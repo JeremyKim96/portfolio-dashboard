@@ -15,9 +15,14 @@ tunnel.log
 tunnel2.log
 gh_auth.log
 
-# 금융 데이터 — 사용자가 push_to_cloud.bat 로 직접 업로드 (git add -f)
-# AI 에이전트가 대량 업로드하지 않도록 기본 무시
+# 비밀키 — 절대 커밋 금지 (이게 노출되면 암호문이 풀림)
+cloud_data/encrypt.key
+
+# 평문 데이터 — 커밋 금지 (암호문 .enc 만 올림)
 cloud_data/portfolio_data.json
+
+# 단, 암호화된 데이터(.enc)는 공개 저장소에 올려도 안전 → 무시하지 않음
+!cloud_data/portfolio_data.enc
 data/
 cloud_data/dashboard_test.html
 

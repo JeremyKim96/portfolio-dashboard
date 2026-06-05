@@ -5,3 +5,4 @@ yfinance>=0.2.40
 requests>=2.31
 plotly>=5.18
 streamlit-autorefresh>=1.0
+cryptography>=42.0
