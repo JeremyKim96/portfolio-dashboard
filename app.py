@@ -546,36 +546,43 @@ def render_family_panel(family_df: pd.DataFrame, my_net_eval: float) -> None:
     fs = family_summary(family_df, my_net_eval)
 
     st.subheader("👨‍👩‍👧 가족 자산 · 운용 총자산")
-    st.caption("`data/portfolio.xlsx`의 **family** 시트에 항목별 금액 입력. 마지막에 저장한 값이 최신.")
+    st.caption("`portfolio.xlsx`의 **family** 시트에 항목별 금액 입력. "
+               "**대출/부채**는 항목명에 '대출'을 넣으면 자동 차감됩니다 (금액은 양수로 입력).")
 
-    # 상단 합계 KPI
+    # 상단 합계 KPI — 자산 / 대출 / 운용총자산
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🟦 내 순자산 (RAW 기준)", fmt_krw(my_net_eval),
+    c1.metric("🟦 내 순자산 (RAW)", fmt_krw(my_net_eval),
               help="신한·업비트 RAW에서 산출된 부채차감 순자산")
-    c2.metric("🟨 가족 자산 합계", fmt_krw(fs["family_total"]),
-              help="family 시트 항목 합계")
-    c3.metric("🟩 운용 총자산", fmt_krw(fs["total_managed"]),
-              delta=f"가족 {fs['family_share']*100:.1f}% · 내 자산 {fs['my_share']*100:.1f}%",
+    c2.metric("🟨 가족 자산", fmt_krw(fs["family_assets"]),
+              help="보증금·투자자산 등 가족 보유자산 합계 (대출 제외)")
+    if fs["family_debt"] > 0:
+        c3.metric("🟥 대출 (부채)", f"-{fs['family_debt']:,.0f}원",
+                  help="family 시트에서 '대출' 항목으로 인식된 금액. 운용 총자산에서 차감.")
+    else:
+        c3.metric("🟥 대출 (부채)", "없음",
+                  help="family 시트에 '대출' 항목을 추가하면 여기 차감 표시됩니다.")
+    c4.metric("🟩 운용 총자산", fmt_krw(fs["total_managed"]),
+              delta="내 자산 + 가족 자산 − 대출",
               delta_color="off",
-              help="내 순자산 + 가족 자산. 본인이 운용·관리하는 자산 전체")
-    n_family = sum(1 for it in fs["items"] if it["amount"] != 0)
-    c4.metric("가족 항목 수", f"{n_family}개",
-              help=f"입력된 가족 자산 항목 (0원 제외). 총 {len(fs['items'])}개 행")
+              help="내 순자산 + 가족 자산 − 대출. 실제 순운용 규모.")
 
     # 항목별 상세 + 도넛
     if fs["items"]:
         left, right = st.columns([3, 2])
         with left:
-            df = pd.DataFrame(fs["items"])
-            df["비중(총자산)"] = df["amount"].map(
-                lambda x: x / fs["total_managed"] if fs["total_managed"] else 0.0
-            )
-            view = df.copy()
-            view["amount"] = view["amount"].map(lambda x: f"{x:,.0f}")
-            view["비중(총자산)"] = view["비중(총자산)"].map(lambda x: f"{x*100:.2f}%")
-            view = view.rename(columns={"label": "항목", "amount": "금액(KRW)", "memo": "메모"})
-            st.dataframe(view[["항목", "금액(KRW)", "비중(총자산)", "메모"]],
-                         use_container_width=True, hide_index=True)
+            rows = []
+            for it in fs["items"]:
+                is_debt = it.get("type") == "debt"
+                share = (it["amount"] / fs["total_managed"]
+                         if fs["total_managed"] and not is_debt else None)
+                rows.append({
+                    "구분": "🟥 대출" if is_debt else "🟦 자산",
+                    "항목": it["label"],
+                    "금액(KRW)": f"{it['amount']:,.0f}",
+                    "비중(총자산)": f"{share*100:.2f}%" if share is not None else "—",
+                    "메모": it["memo"],
+                })
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         with right:
             # 내 자산 + 가족 항목들을 한 도넛으로
             chart_rows = [{"구분": "내 순자산", "금액": float(my_net_eval)}]

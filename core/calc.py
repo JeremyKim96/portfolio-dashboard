@@ -99,38 +99,62 @@ def rebalancing_signals(invest_rows: pd.DataFrame, meta_df: pd.DataFrame,
                                                          ascending=False).reset_index(drop=True)
 
 
+FAMILY_DEBT_KEYWORDS = ("대출", "부채", "빚", "마이너스", "loan", "debt")
+
+
+def _is_family_debt(label: str, amount: float) -> bool:
+    """가족 항목이 부채인지 판단 — 라벨에 대출/부채 키워드 포함 or 금액 음수."""
+    lab = str(label).lower()
+    if any(kw in lab for kw in FAMILY_DEBT_KEYWORDS):
+        return True
+    return amount < 0
+
+
 def family_summary(family_df: pd.DataFrame, my_net_eval: float) -> dict:
-    """가족 자산 합계 + 운용 총자산 계산.
+    """가족 자산(보증금·투자자산 등) + 대출(부채) + 운용 총자산 계산.
+
+    - '대출/부채/빚' 키워드가 든 항목, 또는 음수 금액 = 부채로 차감.
+    - 사용자는 대출 금액을 양수로 입력해도 됨 (라벨로 자동 인식).
 
     반환:
-        family_total : 가족 자산 합계 (KRW)
-        items        : [{label, amount, share_in_total}] 항목별
-        total_managed: 운용 총자산 = 내 순자산 + 가족 자산
-        my_share     : 내 자산이 운용 총자산에서 차지하는 비중
-        family_share : 가족 자산 비중
+        family_assets : 가족 자산(보증금+투자자산 등) 합계 (양수)
+        family_debt   : 가족 대출(부채) 합계 (양수)
+        family_total  : 순 가족 기여 = 자산 - 부채
+        items         : [{label, amount(부채는 음수), type, memo}]
+        total_managed : 운용 총자산 = 내 순자산 + 가족자산 - 대출
+        my_share/family_share : 운용 총자산 내 비중 (양수 기준)
     """
     if family_df is None or family_df.empty:
-        return {"family_total": 0.0, "items": [], "total_managed": float(my_net_eval),
+        return {"family_assets": 0.0, "family_debt": 0.0, "family_total": 0.0,
+                "items": [], "total_managed": float(my_net_eval),
                 "my_share": 1.0 if my_net_eval else 0.0, "family_share": 0.0}
 
     items = []
-    total = 0.0
+    assets = 0.0
+    debt = 0.0
     for _, r in family_df.iterrows():
-        amount = float(r.get("amount", 0) or 0)
-        items.append({
-            "label": str(r.get("label", "")),
-            "amount": amount,
-            "memo": str(r.get("memo", "") or ""),
-        })
-        total += amount
+        label = str(r.get("label", ""))
+        raw = float(r.get("amount", 0) or 0)
+        amt = abs(raw)
+        if _is_family_debt(label, raw):
+            debt += amt
+            items.append({"label": label, "amount": -amt, "type": "debt",
+                          "memo": str(r.get("memo", "") or "")})
+        else:
+            assets += amt
+            items.append({"label": label, "amount": amt, "type": "asset",
+                          "memo": str(r.get("memo", "") or "")})
 
-    managed = float(my_net_eval) + total
+    family_net = assets - debt
+    managed = float(my_net_eval) + family_net
     return {
-        "family_total": total,
+        "family_assets": assets,
+        "family_debt": debt,
+        "family_total": family_net,
         "items": items,
         "total_managed": managed,
         "my_share": (my_net_eval / managed) if managed else 0.0,
-        "family_share": (total / managed) if managed else 0.0,
+        "family_share": (family_net / managed) if managed else 0.0,
     }
 
 
