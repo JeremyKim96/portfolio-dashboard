@@ -63,6 +63,114 @@ def _plotly_chart(fig, *args, **kwargs):
 st.plotly_chart = _plotly_chart
 
 
+# ──────────────────────────────────────────────────────────────────────
+#  테마 / 디자인 시스템  (주간·야간 + 색감 프리셋/랜덤)
+# ──────────────────────────────────────────────────────────────────────
+import random as _random
+
+# 추천 색감 프리셋 (accent, name)
+ACCENT_PRESETS = [
+    ("#4C78A8", "클래식 블루"), ("#2E7D32", "포레스트 그린"),
+    ("#6C5CE7", "바이올렛"),    ("#E8590C", "선셋 오렌지"),
+    ("#0CA678", "민트"),        ("#D6336C", "라즈베리"),
+    ("#1098AD", "오션 틸"),     ("#7048E8", "인디고"),
+    ("#F08C00", "앰버"),        ("#C2255C", "마젠타"),
+]
+
+
+def _hex_to_rgba(hx: str, a: float) -> str:
+    hx = hx.lstrip("#")
+    r, g, b = int(hx[0:2], 16), int(hx[2:4], 16), int(hx[4:6], 16)
+    return f"rgba({r},{g},{b},{a})"
+
+
+def inject_theme(mode: str, accent: str) -> None:
+    """주간/야간 + accent 색을 CSS로 주입. 카드형 metric, 둥근 모서리, 폰트 개선."""
+    if mode == "night":
+        bg = "#0E1117"; bg2 = "#161B22"; card = "#1C2330"; text = "#E6EDF3"
+        sub = "#9DA7B3"; border = "rgba(255,255,255,0.07)"
+    else:
+        bg = "#F7F8FA"; bg2 = "#FFFFFF"; card = "#FFFFFF"; text = "#1A1F2B"
+        sub = "#5B6573"; border = "rgba(0,0,0,0.06)"
+    acc = accent
+    acc_soft = _hex_to_rgba(acc, 0.12)
+
+    st.markdown(f"""
+    <style>
+      .stApp {{ background: {bg}; color: {text}; }}
+      section[data-testid="stSidebar"] {{ background: {bg2}; border-right: 1px solid {border}; }}
+      /* metric 카드화 */
+      div[data-testid="stMetric"] {{
+        background: {card}; border: 1px solid {border}; border-radius: 14px;
+        padding: 14px 16px; box-shadow: 0 1px 3px {_hex_to_rgba('#000000', 0.05)};
+        transition: transform .12s ease, box-shadow .12s ease;
+      }}
+      div[data-testid="stMetric"]:hover {{
+        transform: translateY(-2px); box-shadow: 0 6px 18px {_hex_to_rgba(acc, 0.18)};
+        border-color: {_hex_to_rgba(acc, 0.5)};
+      }}
+      div[data-testid="stMetricvalue"], div[data-testid="stMetricValue"] {{
+        font-weight: 800; color: {text};
+      }}
+      div[data-testid="stMetricLabel"] p {{ color: {sub}; font-weight: 600; }}
+      /* 탭 */
+      button[data-baseweb="tab"] {{ font-weight: 700; }}
+      div[data-baseweb="tab-highlight"] {{ background: {acc} !important; }}
+      button[data-baseweb="tab"][aria-selected="true"] {{ color: {acc} !important; }}
+      /* 제목/구분선 */
+      h1, h2, h3 {{ color: {text}; letter-spacing: -.01em; }}
+      hr {{ border-color: {border}; }}
+      /* 표 */
+      div[data-testid="stDataFrame"] {{ border-radius: 12px; overflow: hidden; border: 1px solid {border}; }}
+      /* 버튼 */
+      .stButton button {{ border-radius: 10px; font-weight: 700; }}
+      .stButton button:hover {{ border-color: {acc}; color: {acc}; }}
+      /* 정보/경고 박스 살짝 */
+      div[data-testid="stExpander"] {{ border-radius: 12px; border: 1px solid {border}; }}
+      /* 좌측 하단 실시간 인디케이터 */
+      #live-dot {{
+        position: fixed; left: 14px; bottom: 12px; z-index: 9999;
+        background: {card}; border: 1px solid {border}; border-radius: 999px;
+        padding: 6px 12px; font-size: 12px; color: {sub};
+        box-shadow: 0 2px 8px {_hex_to_rgba('#000000', 0.12)};
+        display: flex; align-items: center; gap: 7px;
+      }}
+      #live-dot .dot {{
+        width: 9px; height: 9px; border-radius: 50%; background: #2BD46A;
+        box-shadow: 0 0 0 0 rgba(43,212,106,.7); animation: pulse 1.8s infinite;
+      }}
+      @keyframes pulse {{
+        0% {{ box-shadow: 0 0 0 0 rgba(43,212,106,.6); }}
+        70% {{ box-shadow: 0 0 0 9px rgba(43,212,106,0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(43,212,106,0); }}
+      }}
+      /* accent 강조 텍스트 */
+      strong {{ color: {text}; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+
+def render_live_dot() -> None:
+    """좌측 하단 실시간 갱신 인디케이터 (60초마다 자동 새로고침과 연동)."""
+    now = datetime.now().strftime("%H:%M:%S")
+    st.markdown(
+        f'<div id="live-dot"><span class="dot"></span>실시간 · {now} 갱신</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def fmt_short(v: float) -> str:
+    """원화 컴팩트 표기: 1.8억 / 3,450만 / 12,000 (막대 라벨용)."""
+    v = float(v)
+    sign = "-" if v < 0 else ""
+    a = abs(v)
+    if a >= 1e8:
+        return f"{sign}{a/1e8:.2f}억"
+    if a >= 1e4:
+        return f"{sign}{a/1e4:,.0f}만"
+    return f"{sign}{a:,.0f}"
+
+
 def _get_password() -> str:
     """비밀번호: Streamlit secrets(APP_PASSWORD) 우선, 없으면 1996."""
     try:
@@ -267,19 +375,7 @@ def render_market_context() -> None:
                 help=f"심볼: {info['symbol']} · 주간 {info['week_change']*100:+.2f}%",
             )
 
-    # 시장 국면 + 투자 컨디션
-    regime = get_market_regime("^GSPC")
-    vix_price = data.get("vix", {}).get("price")
-    if regime:
-        temp = market_temperature(vix_price, regime.get("status", ""))
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("S&P500 국면", regime.get("status", "—"),
-                  help=f"50일 이평 {regime['ma50']:,.0f} / 200일 이평 {regime['ma200']:,.0f} (있을 때)")
-        c2.metric("S&P 50일선 대비", f"{regime['vs_ma50_pct']*100:+.2f}%")
-        c3.metric("S&P 200일선 대비", f"{regime['vs_ma200_pct']*100:+.2f}%")
-        c4.metric("투자 컨디션", temp["label"], help=temp["advice"])
-        if temp["advice"]:
-            st.caption(f"💡 **{temp['label']}** — {temp['advice']}")
+    # (S&P 국면·투자 컨디션은 상단 헤더에 이미 표시 → 중복 제거)
 
 
 def render_bubble(bubble: dict) -> None:
@@ -526,33 +622,51 @@ def render_allocation_charts(all_rows: pd.DataFrame) -> None:
         _pie(allocation_by_bucket(all_rows), "자산버킷", "자산버킷 (성격별)")
 
 
-def render_top_and_pnl(invest_rows: pd.DataFrame) -> None:
+def render_top_and_pnl(invest_rows: pd.DataFrame, accent: str = "#4C78A8") -> None:
     if invest_rows.empty:
         return
     left, right = st.columns(2)
 
     with left:
         st.subheader("상위 종목 TOP 5")
-        top = invest_rows.nlargest(5, "평가금액")[["종목명", "평가금액"]]
-        fig = px.bar(top, x="평가금액", y="종목명", orientation="h", text="평가금액")
-        fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
+        top = invest_rows.nlargest(5, "평가금액")[["종목명", "평가금액"]].copy()
+        # 큰 값일수록 진한 accent (색 대비)
+        mx = float(top["평가금액"].max()) or 1.0
+        shades = [_hex_to_rgba(accent, 0.45 + 0.55 * (v / mx)) for v in top["평가금액"]]
+        fig = go.Figure(go.Bar(
+            x=top["평가금액"], y=top["종목명"], orientation="h",
+            marker_color=shades,
+            text=[fmt_short(v) for v in top["평가금액"]],
+            textposition="inside", insidetextanchor="end",
+            textfont=dict(color="white", size=13, family="Arial Black"),
+            hovertemplate="<b>%{y}</b><br>%{x:,.0f}원<extra></extra>",
+        ))
         fig.update_layout(yaxis=dict(autorange="reversed"),
-                          margin=dict(t=10, b=10, l=10, r=10), height=320)
+                          xaxis=dict(visible=False),
+                          margin=dict(t=10, b=10, l=10, r=20), height=320,
+                          uniformtext=dict(minsize=10, mode="hide"))
         st.plotly_chart(fig, use_container_width=True)
 
     with right:
         st.subheader("종목별 손익 기여")
         df = pnl_contribution(invest_rows)
-        df["color"] = df["손익"].apply(lambda x: "#54A24B" if x >= 0 else "#E45756")
+        df["color"] = df["손익"].apply(lambda x: "#2BA84A" if x >= 0 else "#E03131")
+        # 0 기준 양수는 막대 안 오른쪽, 음수는 안 왼쪽 → 잘림 방지
+        positions = ["inside" if abs(v) > 0 else "outside" for v in df["손익"]]
         fig = go.Figure(go.Bar(
             x=df["손익"], y=df["종목명"], orientation="h",
             marker_color=df["color"],
-            text=[f"{v:+,.0f}" for v in df["손익"]],
-            textposition="outside",
+            text=[fmt_short(v) if v >= 0 else fmt_short(v) for v in df["손익"]],
+            textposition=positions,
+            insidetextanchor="end",
+            textfont=dict(color="white", size=12, family="Arial Black"),
             hovertemplate="<b>%{y}</b><br>%{x:+,.0f}원<extra></extra>",
         ))
         fig.update_layout(yaxis=dict(autorange="reversed"),
-                          margin=dict(t=10, b=10, l=10, r=10), height=320)
+                          xaxis=dict(visible=False, zeroline=True,
+                                     zerolinecolor="rgba(128,128,128,.4)"),
+                          margin=dict(t=10, b=10, l=10, r=10), height=320,
+                          uniformtext=dict(minsize=9, mode="hide"))
         st.plotly_chart(fig, use_container_width=True)
 
 
@@ -891,36 +1005,66 @@ def render_timeseries() -> None:
         return
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📈 순자산·총자산", "💰 자산군별", "📊 수익률·환율", "📉 일별 증감률"
+        "📈 자산 추이", "💰 자산군별", "📊 수익률·환율", "📉 일별 증감률"
     ])
+
+    accent = st.session_state.get("accent", "#4C78A8")
+    # x를 균등 간격(카테고리)으로 → 날짜 공백 때문에 그래프가 늘어지는 문제 해결
+    xlabels = pd.to_datetime(df["date"]).dt.strftime("%m/%d")
 
     with tab1:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df["date"], y=df["gross_assets"],
-                                 name="총자산", mode="lines+markers",
-                                 line=dict(color="#4C78A8", width=2)))
-        fig.add_trace(go.Scatter(x=df["date"], y=df["total_eval"],
-                                 name="순자산(부채차감)", mode="lines+markers",
-                                 line=dict(color="#E45756", width=2)))
-        fig.update_layout(hovermode="x unified", height=380,
-                          yaxis_tickformat=",.0f",
-                          margin=dict(t=20, b=20, l=10, r=10))
+        # 총자산 — 채워진 영역 (메인)
+        fig.add_trace(go.Scatter(
+            x=xlabels, y=df["gross_assets"], name="총자산",
+            mode="lines+markers+text",
+            line=dict(color=accent, width=2.5),
+            marker=dict(size=7),
+            fill="tozeroy", fillcolor=_hex_to_rgba(accent, 0.12),
+            text=[fmt_short(v) for v in df["gross_assets"]],
+            textposition="top center", textfont=dict(size=11),
+            hovertemplate="%{x}<br>총자산 %{y:,.0f}원<extra></extra>",
+        ))
+        # 순자산(부채차감)이 총자산과 다를 때만 별도 라인
+        if (df["debt"].abs() > 1).any():
+            fig.add_trace(go.Scatter(
+                x=xlabels, y=df["total_eval"], name="순자산(부채차감)",
+                mode="lines+markers", line=dict(color="#E03131", width=2, dash="dot"),
+                marker=dict(size=6),
+                hovertemplate="%{x}<br>순자산 %{y:,.0f}원<extra></extra>",
+            ))
+        # y축: 데이터 범위로 확대 (변동성 보이게)
+        ymin = float(df[["gross_assets", "total_eval"]].min().min())
+        ymax = float(df[["gross_assets", "total_eval"]].max().max())
+        pad = max((ymax - ymin) * 0.18, ymax * 0.02)
+        fig.update_layout(
+            hovermode="x unified", height=400,
+            yaxis=dict(range=[ymin - pad, ymax + pad], tickformat=",.0f", title="원"),
+            xaxis=dict(type="category", title=None),
+            margin=dict(t=20, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        )
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("💡 정규화 비교(내 포폴 vs S&P500)는 '수익률·환율' 탭에서 확인.")
+        latest = df.iloc[-1]
+        first = df.iloc[0]
+        chg = (latest["gross_assets"] - first["gross_assets"]) / first["gross_assets"] * 100 if first["gross_assets"] else 0
+        st.caption(f"📌 기간 변화: **{fmt_short(first['gross_assets'])} → {fmt_short(latest['gross_assets'])}** ({chg:+.1f}%) · {len(df)}개 시점")
 
     with tab2:
-        long = df.melt(id_vars=["date"],
+        d2 = df.copy()
+        d2["x"] = xlabels.values
+        long = d2.melt(id_vars=["x"],
                        value_vars=["stock_eval", "coin_eval", "cash_eval"],
                        var_name="자산군", value_name="평가금액")
         long["자산군"] = long["자산군"].map({
             "stock_eval": "해외주식", "coin_eval": "암호화폐", "cash_eval": "현금"
         })
-        fig = px.area(long, x="date", y="평가금액", color="자산군",
+        fig = px.area(long, x="x", y="평가금액", color="자산군",
                       color_discrete_map={"해외주식": "#4C78A8",
                                           "암호화폐": "#F58518",
                                           "현금": "#54A24B"})
         fig.update_layout(hovermode="x unified", height=380,
-                          yaxis_tickformat=",.0f",
+                          yaxis_tickformat=",.0f", xaxis=dict(type="category", title=None),
                           margin=dict(t=20, b=20, l=10, r=10))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -958,22 +1102,25 @@ def render_timeseries() -> None:
         if d.empty:
             st.info("스냅샷이 더 누적되면 일별 증감률이 표시됩니다.")
             return
-        colors = ["#E45756" if v < 0 else "#54A24B" for v in d["daily_pct"]]
+        d["x"] = pd.to_datetime(d["date"]).dt.strftime("%m/%d")
+        colors = ["#E03131" if v < 0 else "#2BA84A" for v in d["daily_pct"]]
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=d["date"], y=d["daily_pct"],
+            x=d["x"], y=d["daily_pct"],
             marker_color=colors,
             name="일별 변동(%)",
-            hovertemplate="%{x|%Y-%m-%d}<br>%{y:+.2f}%<extra></extra>",
+            text=[f"{v:+.1f}%" for v in d["daily_pct"]],
+            textposition="outside", textfont=dict(size=10),
+            hovertemplate="%{x}<br>%{y:+.2f}%<extra></extra>",
         ))
         if len(d) >= 7:
             d["ma7"] = d["daily_pct"].rolling(7, min_periods=1).mean()
             fig.add_trace(go.Scatter(
-                x=d["date"], y=d["ma7"], name="7일 이평",
+                x=d["x"], y=d["ma7"], name="7일 이평",
                 line=dict(color="#9D755D", width=2),
             ))
         fig.update_layout(hovermode="x unified", height=380,
-                          yaxis_title="일별 변동률(%)",
+                          yaxis_title="일별 변동률(%)", xaxis=dict(type="category"),
                           margin=dict(t=20, b=20, l=10, r=10))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -1074,7 +1221,39 @@ def render_table(stock_rows: pd.DataFrame, coin_rows: pd.DataFrame,
             st.caption("💡 대출잔액은 음수(-)로 입력. 자동으로 부채에 잡힙니다.")
 
 
+def _theme_controls() -> tuple[str, str]:
+    """사이드바 테마 선택 → (mode, accent). session_state 보존."""
+    if "theme_mode" not in st.session_state:
+        st.session_state.theme_mode = "light"
+    if "accent" not in st.session_state:
+        st.session_state.accent = ACCENT_PRESETS[0][0]
+
+    with st.sidebar:
+        st.markdown("### 🎨 화면 테마")
+        mode_label = st.radio("모드", ["☀️ 주간", "🌙 야간"],
+                              horizontal=True,
+                              index=0 if st.session_state.theme_mode == "light" else 1,
+                              label_visibility="collapsed")
+        st.session_state.theme_mode = "light" if "주간" in mode_label else "night"
+
+        names = [n for _, n in ACCENT_PRESETS]
+        cur_name = next((n for a, n in ACCENT_PRESETS if a == st.session_state.accent), names[0])
+        picked = st.selectbox("색감", names, index=names.index(cur_name))
+        st.session_state.accent = next(a for a, n in ACCENT_PRESETS if n == picked)
+
+        if st.button("🎲 색감 랜덤 추천", use_container_width=True):
+            st.session_state.accent = _random.choice(ACCENT_PRESETS)[0]
+            st.rerun()
+        st.divider()
+
+    return st.session_state.theme_mode, st.session_state.accent
+
+
 def main() -> None:
+    # 테마 먼저 적용
+    mode, accent = _theme_controls()
+    inject_theme(mode, accent)
+
     st.title("📊 내 포트폴리오")
     st.caption(f"마지막 조회: {datetime.now():%Y-%m-%d %H:%M:%S}")
 
@@ -1170,7 +1349,7 @@ def main() -> None:
             kind_colors = {"개별주": "#4C78A8", "ETF": "#72B7B2", "코인": "#F58518", "현금": "#54A24B"}
             _pie(_ak(all_rows_agg), "종류", "종류별", color_map=kind_colors)
         st.divider()
-        render_top_and_pnl(invest_rows)
+        render_top_and_pnl(invest_rows, accent)
 
     # ===== 🌐 시장 (무거운 뉴스·버블은 이 탭에서만 계산 → 첫 로딩 속도 개선) =====
     with tab_market:
@@ -1230,6 +1409,9 @@ def main() -> None:
         render_monthly_heatmap(snapshots_df)
         st.divider()
         render_table(stock_rows, coin_rows, cash_rows)
+
+    # 좌측 하단 실시간 인디케이터 (항상 표시)
+    render_live_dot()
 
 
 if __name__ == "__main__":
