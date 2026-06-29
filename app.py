@@ -112,10 +112,21 @@ def inject_theme(mode: str, accent: str) -> None:
       }}
       div[data-testid="stMetricValue"] {{
         font-weight: 800; color: {text};
-        font-size: 1.55rem; white-space: nowrap; overflow: visible;
+        font-size: 1.45rem; white-space: normal; overflow: visible;
+        text-overflow: clip; line-height: 1.15;
       }}
-      div[data-testid="stMetricValue"] > div {{ overflow: visible; }}
-      div[data-testid="stMetricLabel"] p {{ color: {sub}; font-weight: 600; }}
+      div[data-testid="stMetricValue"] > div {{ overflow: visible !important; text-overflow: clip !important; }}
+      div[data-testid="stMetricLabel"] {{ overflow: visible; }}
+      div[data-testid="stMetricLabel"] p {{
+        color: {sub}; font-weight: 600; font-size: 0.78rem;
+        white-space: normal; overflow: visible; text-overflow: clip;
+      }}
+      /* 좁은 화면(폰) — 글자 더 줄이고 카드 패딩 축소 */
+      @media (max-width: 680px) {{
+        div[data-testid="stMetricValue"] {{ font-size: 1.05rem; }}
+        div[data-testid="stMetricLabel"] p {{ font-size: 0.66rem; }}
+        div[data-testid="stMetric"] {{ padding: 8px 9px; border-radius: 11px; }}
+      }}
       /* 탭 */
       button[data-baseweb="tab"] {{ font-weight: 700; }}
       div[data-baseweb="tab-highlight"] {{ background: {acc} !important; }}
@@ -304,49 +315,50 @@ def render_top_header(s: dict, fs: dict, fg: dict, vix: float | None,
     # 1행: 자산 KPI
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(
-        "🟩 운용 총자산",
+        "🟩 운용자산",
         fmt_short(fs["total_managed"]),
-        delta=f"가족 {fs['family_share']*100:.1f}%",
+        delta=f"가족 {fs['family_share']*100:.0f}%",
         delta_color="off",
-        help=f"내 순자산 + 가족 자산 − 대출 · 정확히 {fmt_krw(fs['total_managed'])}",
+        help=f"운용 총자산 = 내 순자산 + 가족 자산 − 대출 · 정확히 {fmt_krw(fs['total_managed'])}",
     )
     c2.metric(
         "🟦 내 순자산",
         fmt_short(s["total_eval"]),
-        delta=f"수익률 {s['total_return']*100:+.2f}%",
+        delta=f"{s['total_return']*100:+.1f}%",
         help=f"신한·업비트 RAW 기준 · 정확히 {fmt_krw(s['total_eval'])}",
     )
-    c3.metric("📈 일간 변동", fmt_pct(s["day_change"]))
-    c4.metric("📈 주간 변동", fmt_pct(s["week_change"]))
+    c3.metric("📈 일간", fmt_pct(s["day_change"]))
+    c4.metric("📈 주간", fmt_pct(s["week_change"]))
 
     # 2행: 시장 컨디션
     m1, m2, m3, m4 = st.columns(4)
     if fg:
         m1.metric(
-            f"😨 CNN F&G {fg['label']}",
-            f"{fg['score']:.0f} / 100",
-            delta=f"1주 전 {fg['prev_week']:.0f}" if fg.get("prev_week") else None,
+            "😨 공포·탐욕",
+            f"{fg['score']:.0f}",
+            delta=_plain(fg.get("label", "")),
             delta_color="off",
-            help=f"CNN Fear & Greed Index. {fg['advice']}",
+            help=f"CNN Fear & Greed Index (0=극공포·100=극탐욕). {fg['advice']}",
         )
     else:
-        m1.metric("😨 CNN F&G", "—", help="API 응답 없음")
+        m1.metric("😨 공포·탐욕", "—", help="API 응답 없음")
 
     if vix is not None:
-        m2.metric(f"{vix_color(vix)} VIX 변동성",
-                  f"{vix:,.2f}",
-                  help="20↑ 🟡 주의 · 30↑ 🔴 위험")
+        m2.metric(f"{vix_color(vix)} VIX",
+                  f"{vix:,.1f}",
+                  help="변동성지수. 20↑ 🟡 주의 · 30↑ 🔴 위험")
     else:
-        m2.metric("VIX 변동성", "—")
+        m2.metric("VIX", "—")
 
     if regime:
-        m3.metric("S&P500 국면", regime.get("status", "—"),
-                  delta=f"50일선 {regime['vs_ma50_pct']*100:+.2f}%",
-                  delta_color="off")
+        m3.metric("🏛️ S&P 국면", _plain(regime.get("status", "—")),
+                  delta=f"50일선 {regime['vs_ma50_pct']*100:+.1f}%",
+                  delta_color="off",
+                  help=regime.get("status", ""))
     else:
-        m3.metric("S&P500 국면", "—")
+        m3.metric("🏛️ S&P 국면", "—")
 
-    m4.metric("🌡️ 투자 컨디션", temp["label"] if temp else "—",
+    m4.metric("🌡️ 컨디션", _plain(temp["label"]) if temp else "—",
               help=temp.get("advice", "") if temp else "")
     if temp and temp.get("advice"):
         st.caption(f"💡 **{temp['label']}** — {temp['advice']}")
@@ -853,9 +865,9 @@ def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
     fig.update_layout(
         height=300 if compact else 360,
         yaxis=dict(range=[max(0, ymin - pad), ymax + pad], tickformat=",.0f"),
-        xaxis=dict(type="category", title=None),
-        margin=dict(t=30, b=10, l=10, r=10),
-        title=None,
+        xaxis=dict(type="category", title=""),
+        margin=dict(t=20, b=10, l=10, r=10),
+        title_text="",
     )
     st.plotly_chart(fig, use_container_width=True)
     cols = st.columns(3)
