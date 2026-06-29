@@ -69,6 +69,7 @@ def build_local_data() -> dict:
     from .loaders import load_family, load_meta
     from .calc import build_rows_from_raw
     from .snapshots import load_snapshots
+    from .history_extra import combined_account_history, load_total_history
 
     raw_df = load_raw()
     meta_df = load_meta()
@@ -90,7 +91,8 @@ def build_local_data() -> dict:
         "cash_rows": cash_rows,
         "family_df": family_df,
         "meta_df": meta_df,
-        "account_hist": account_history(),
+        "account_hist": combined_account_history(account_history()),
+        "total_history": load_total_history(),
         "snapshots": load_snapshots(),
         "raw_meta": raw_meta,
         "raw_ts": raw_timestamp(raw_df),
@@ -135,6 +137,7 @@ def export_bundle() -> Path:
             "family_df": _df_to_json(data["family_df"]),
             "meta_df": _df_to_json(data["meta_df"]),
             "account_hist": _df_to_json(data["account_hist"]),
+            "total_history": _df_to_json(data.get("total_history", pd.DataFrame(columns=["date", "total"]))),
             "snapshots": _df_to_json(data["snapshots"]),
         }
 
@@ -190,6 +193,7 @@ def load_bundle() -> dict:
         "family_df": _df_from_json(bundle["family_df"]),
         "meta_df": _df_from_json(bundle["meta_df"]),
         "account_hist": _df_from_json(bundle["account_hist"], ["ts"]),
+        "total_history": _df_from_json(bundle.get("total_history", '{"columns":["date","total"],"data":[]}'), ["date"]),
         "snapshots": _df_from_json(bundle["snapshots"], ["date"]),
         "raw_meta": {"name": bundle.get("raw_name"), "folder": "(클라우드)", "mtime": gen},
         "raw_ts": raw_ts,

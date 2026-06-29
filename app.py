@@ -40,6 +40,7 @@ from core.market import (
 from core.news import get_market_news, news_sentiment
 from core.bubble import compute_bubble_index
 from core.raw_loader import account_history, load_raw, raw_info, raw_timestamp, split_holdings_and_cash
+from core.history_extra import append_total
 from core.snapshots import append_snapshot, load_snapshots
 from core.tunnel import public_url, tunnel_log_mtime
 
@@ -827,8 +828,47 @@ def render_diagnostics(invest_rows: pd.DataFrame) -> None:
     st.dataframe(view, use_container_width=True, hide_index=True)
 
 
+def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
+                       compact: bool = False) -> None:
+    """총자산 추이 — 과거(엑셀) + 현재(자동) 통합. 메인 페이지용."""
+    if total_hist is None or total_hist.empty or len(total_hist) < 2:
+        st.info("총자산 추이 데이터가 아직 부족합니다.")
+        return
+    df = total_hist.sort_values("date").copy()
+    xlabels = pd.to_datetime(df["date"]).dt.strftime("%y.%m")
+    first, last = df.iloc[0], df.iloc[-1]
+    growth = (last["total"] / first["total"] - 1) * 100 if first["total"] else 0
+
+    fig = go.Figure(go.Scatter(
+        x=xlabels, y=df["total"], mode="lines+markers+text",
+        line=dict(color=accent, width=3, shape="spline"),
+        marker=dict(size=8),
+        fill="tozeroy", fillcolor=_hex_to_rgba(accent, 0.10),
+        text=[fmt_short(v) for v in df["total"]],
+        textposition="top center", textfont=dict(size=10),
+        hovertemplate="%{x}<br>총자산 %{y:,.0f}원<extra></extra>",
+    ))
+    ymin, ymax = float(df["total"].min()), float(df["total"].max())
+    pad = (ymax - ymin) * 0.15 or ymax * 0.05
+    fig.update_layout(
+        height=300 if compact else 360,
+        yaxis=dict(range=[max(0, ymin - pad), ymax + pad], tickformat=",.0f"),
+        xaxis=dict(type="category", title=None),
+        margin=dict(t=30, b=10, l=10, r=10),
+        title=None,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    cols = st.columns(3)
+    cols[0].metric("현재 총자산", fmt_short(last["total"]),
+                   help=f"정확히 {fmt_krw(last['total'])}")
+    cols[1].metric("시작 대비", f"{growth:+.0f}%",
+                   help=f"{fmt_short(first['total'])} → {fmt_short(last['total'])}")
+    cols[2].metric("기록 기간", f"{len(df)}개 시점",
+                   help=f"{pd.to_datetime(first['date']):%Y-%m} ~ {pd.to_datetime(last['date']):%Y-%m}")
+
+
 def render_account_history(acc_hist: pd.DataFrame) -> None:
-    """계좌별 자산 증감 추이 — RAW 파일 전체를 시계열로."""
+    """계좌별 자산 증감 추이 — 엑셀 과거 + RAW 현재 통합."""
     st.subheader("🏦 계좌별 자산 추이")
     if acc_hist is None or acc_hist.empty:
         st.info("RAW 파일이 누적되면 계좌별 추이가 표시됩니다.")
@@ -1309,17 +1349,22 @@ def main() -> None:
     lev = weighted_leverage(invest_rows)
     lr = leverage_ratio(s)
 
-    # 스냅샷 자동 저장 (로컬에서만 — 클라우드는 읽기 전용)
+    # 스냅샷 + 총자산 추이 자동 저장 (로컬에서만 — 클라우드는 읽기 전용)
     if not cloud:
         try:
             append_snapshot(s, all_rows_agg, usd_krw,
                             leverage=lev, ratio=lr, vix=vix_price)
+            append_total(float(fs.get("total_managed", 0)))  # 운용 총자산 추이 누적
         except Exception as e:
-            st.sidebar.warning(f"스냅샷 저장 실패: {e}")
+            st.sidebar.warning(f"추이 저장 실패: {e}")
 
     snapshots_df = data.get("snapshots")
     if snapshots_df is None:
         snapshots_df = load_snapshots()
+    total_hist = data.get("total_history")
+    if total_hist is None:
+        from core.history_extra import load_total_history as _lth
+        total_hist = _lth()
 
     # ---------- 상단 헤더 (항상 표시) ----------
     render_top_header(s, fs, fg, vix_price, regime, temp)
@@ -1337,6 +1382,9 @@ def main() -> None:
 
     # ===== 📊 요약 =====
     with tab_summary:
+        st.markdown("##### 📈 총자산 추이 (과거 기록 + 현재)")
+        render_total_trend(total_hist, accent, compact=True)
+        st.divider()
         st.markdown("##### 🏦 자산 합계")
         render_kpis(s)
         st.divider()
