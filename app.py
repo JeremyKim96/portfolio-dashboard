@@ -87,11 +87,11 @@ def _hex_to_rgba(hx: str, a: float) -> str:
 def inject_theme(mode: str, accent: str) -> None:
     """주간/야간 + accent 색을 CSS로 주입. 카드형 metric, 둥근 모서리, 폰트 개선."""
     if mode == "night":
-        bg = "#0E1117"; bg2 = "#161B22"; card = "#1C2330"; text = "#E6EDF3"
-        sub = "#9DA7B3"; border = "rgba(255,255,255,0.07)"
+        bg = "#0E1117"; bg2 = "#161B22"; card = "#1C2330"; text = "#F0F4F9"
+        sub = "#C2CCD8"; border = "rgba(255,255,255,0.09)"
     else:
         bg = "#F7F8FA"; bg2 = "#FFFFFF"; card = "#FFFFFF"; text = "#1A1F2B"
-        sub = "#5B6573"; border = "rgba(0,0,0,0.06)"
+        sub = "#4A5360"; border = "rgba(0,0,0,0.06)"
     acc = accent
     acc_soft = _hex_to_rgba(acc, 0.12)
 
@@ -109,9 +109,11 @@ def inject_theme(mode: str, accent: str) -> None:
         transform: translateY(-2px); box-shadow: 0 6px 18px {_hex_to_rgba(acc, 0.18)};
         border-color: {_hex_to_rgba(acc, 0.5)};
       }}
-      div[data-testid="stMetricvalue"], div[data-testid="stMetricValue"] {{
+      div[data-testid="stMetricValue"] {{
         font-weight: 800; color: {text};
+        font-size: 1.55rem; white-space: nowrap; overflow: visible;
       }}
+      div[data-testid="stMetricValue"] > div {{ overflow: visible; }}
       div[data-testid="stMetricLabel"] p {{ color: {sub}; font-weight: 600; }}
       /* 탭 */
       button[data-baseweb="tab"] {{ font-weight: 700; }}
@@ -302,16 +304,16 @@ def render_top_header(s: dict, fs: dict, fg: dict, vix: float | None,
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(
         "🟩 운용 총자산",
-        fmt_krw(fs["total_managed"]),
+        fmt_short(fs["total_managed"]),
         delta=f"가족 {fs['family_share']*100:.1f}%",
         delta_color="off",
-        help="내 순자산 + 가족 자산 (보증금 + 다은 투자자산)",
+        help=f"내 순자산 + 가족 자산 − 대출 · 정확히 {fmt_krw(fs['total_managed'])}",
     )
     c2.metric(
         "🟦 내 순자산",
-        fmt_krw(s["total_eval"]),
+        fmt_short(s["total_eval"]),
         delta=f"수익률 {s['total_return']*100:+.2f}%",
-        help="신한·업비트 RAW 기준, 부채(대출) 차감",
+        help=f"신한·업비트 RAW 기준 · 정확히 {fmt_krw(s['total_eval'])}",
     )
     c3.metric("📈 일간 변동", fmt_pct(s["day_change"]))
     c4.metric("📈 주간 변동", fmt_pct(s["week_change"]))
@@ -537,11 +539,12 @@ def render_fear_greed_detail(fg: dict) -> None:
 
 def render_kpis(s: dict) -> None:
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("순자산 (부채차감)", fmt_krw(s["total_eval"]),
-              delta=f"총자산 {fmt_krw(s['gross_assets'])}",
-              delta_color="off")
+    c1.metric("순자산 (부채차감)", fmt_short(s["total_eval"]),
+              delta=f"총자산 {fmt_short(s['gross_assets'])}",
+              delta_color="off",
+              help=f"정확히 {fmt_krw(s['total_eval'])}")
     c2.metric("투자 수익률", fmt_pct(s["total_return"]),
-              delta=fmt_krw(s["total_pnl"]))
+              delta=fmt_short(s["total_pnl"]))
     c3.metric("일간 변동", fmt_pct(s["day_change"]))
     c4.metric("주간 변동", fmt_pct(s["week_change"]))
 
@@ -681,22 +684,22 @@ def render_family_panel(family_df: pd.DataFrame, my_net_eval: float) -> None:
     st.caption("`portfolio.xlsx`의 **family** 시트에 항목별 금액 입력. "
                "**대출/부채**는 항목명에 '대출'을 넣으면 자동 차감됩니다 (금액은 양수로 입력).")
 
-    # 상단 합계 KPI — 자산 / 대출 / 운용총자산
+    # 상단 합계 KPI — 자산 / 대출 / 운용총자산 (컴팩트 억/만 표기)
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🟦 내 순자산 (RAW)", fmt_krw(my_net_eval),
-              help="신한·업비트 RAW에서 산출된 부채차감 순자산")
-    c2.metric("🟨 가족 자산", fmt_krw(fs["family_assets"]),
-              help="보증금·투자자산 등 가족 보유자산 합계 (대출 제외)")
+    c1.metric("🟦 내 순자산 (RAW)", fmt_short(my_net_eval),
+              help=f"RAW 기준 부채차감 순자산 · 정확히 {fmt_krw(my_net_eval)}")
+    c2.metric("🟨 가족 자산", fmt_short(fs["family_assets"]),
+              help=f"보증금·투자자산 등 (대출 제외) · 정확히 {fmt_krw(fs['family_assets'])}")
     if fs["family_debt"] > 0:
-        c3.metric("🟥 대출 (부채)", f"-{fs['family_debt']:,.0f}원",
-                  help="family 시트에서 '대출' 항목으로 인식된 금액. 운용 총자산에서 차감.")
+        c3.metric("🟥 대출 (부채)", f"-{fmt_short(fs['family_debt'])}",
+                  help=f"'대출' 항목 합계. 차감 반영 · 정확히 {fmt_krw(fs['family_debt'])}")
     else:
         c3.metric("🟥 대출 (부채)", "없음",
                   help="family 시트에 '대출' 항목을 추가하면 여기 차감 표시됩니다.")
-    c4.metric("🟩 운용 총자산", fmt_krw(fs["total_managed"]),
-              delta="내 자산 + 가족 자산 − 대출",
+    c4.metric("🟩 운용 총자산", fmt_short(fs["total_managed"]),
+              delta="내 + 가족 − 대출",
               delta_color="off",
-              help="내 순자산 + 가족 자산 − 대출. 실제 순운용 규모.")
+              help=f"내 순자산 + 가족 자산 − 대출 · 정확히 {fmt_krw(fs['total_managed'])}")
 
     # 항목별 상세 + 도넛
     if fs["items"]:
