@@ -840,16 +840,49 @@ def render_diagnostics(invest_rows: pd.DataFrame) -> None:
     st.dataframe(view, use_container_width=True, hide_index=True)
 
 
+def _filter_period(df: pd.DataFrame, datecol: str, period: str) -> pd.DataFrame:
+    """기간 필터. '최근 1개월'/'최근 3개월'/'최근 6개월'/'전체'."""
+    if period == "전체":
+        return df
+    days = {"최근 1개월": 31, "최근 3개월": 93, "최근 6개월": 186}.get(period)
+    if not days:
+        return df
+    last_date = pd.to_datetime(df[datecol]).max()
+    cutoff = last_date - pd.Timedelta(days=days)
+    sub = df[pd.to_datetime(df[datecol]) >= cutoff]
+    return sub if len(sub) >= 2 else df.tail(max(2, len(df) // 3))
+
+
 def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
                        compact: bool = False) -> None:
-    """총자산 추이 — 과거(엑셀) + 현재(자동) 통합. 메인 페이지용."""
+    """총자산 추이 — 과거(엑셀) + 현재(자동). 기간 선택 + y축 자동확대로 변동폭 강조."""
     if total_hist is None or total_hist.empty or len(total_hist) < 2:
         st.info("총자산 추이 데이터가 아직 부족합니다.")
         return
-    df = total_hist.sort_values("date").copy()
-    xlabels = pd.to_datetime(df["date"]).dt.strftime("%y.%m")
-    first, last = df.iloc[0], df.iloc[-1]
+    full = total_hist.sort_values("date").copy()
+
+    # 현재값·변동 요약 (항상 전체 기준)
+    last = full.iloc[-1]
+    prev = full.iloc[-2]
+    chg_abs = last["total"] - prev["total"]
+    chg_pct = (chg_abs / prev["total"] * 100) if prev["total"] else 0
+    first = full.iloc[0]
     growth = (last["total"] / first["total"] - 1) * 100 if first["total"] else 0
+    k1, k2, k3 = st.columns(3)
+    k1.metric("💰 현재 총자산", fmt_short(last["total"]),
+              delta=f"직전 대비 {chg_abs/1e8:+.2f}억 ({chg_pct:+.1f}%)",
+              help=f"정확히 {fmt_krw(last['total'])}")
+    k2.metric("📈 시작 대비", f"{growth:+.0f}%",
+              help=f"{fmt_short(first['total'])} → {fmt_short(last['total'])}")
+    k3.metric("🗓️ 기록", f"{len(full)}개 시점",
+              help=f"{pd.to_datetime(first['date']):%Y-%m} ~ {pd.to_datetime(last['date']):%Y-%m}")
+
+    # 기간 선택
+    period = st.radio("기간", ["전체", "최근 6개월", "최근 3개월", "최근 1개월"],
+                      horizontal=True, index=0, key="tt_period",
+                      label_visibility="collapsed")
+    df = _filter_period(full, "date", period)
+    xlabels = pd.to_datetime(df["date"]).dt.strftime("%y.%m.%d")
 
     fig = go.Figure(go.Scatter(
         x=xlabels, y=df["total"], mode="lines+markers+text",
@@ -860,23 +893,21 @@ def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
         textposition="top center", textfont=dict(size=10),
         hovertemplate="%{x}<br>총자산 %{y:,.0f}원<extra></extra>",
     ))
+    # y축을 해당 기간 데이터 범위로 확대(0 시작 안 함) → 변동폭 잘 보임
     ymin, ymax = float(df["total"].min()), float(df["total"].max())
-    pad = (ymax - ymin) * 0.15 or ymax * 0.05
+    span = ymax - ymin
+    pad = span * 0.25 if span > 0 else ymax * 0.05
     fig.update_layout(
         height=300 if compact else 360,
-        yaxis=dict(range=[max(0, ymin - pad), ymax + pad], tickformat=",.0f"),
+        yaxis=dict(range=[ymin - pad, ymax + pad], tickformat=",.0f", title="원"),
         xaxis=dict(type="category", title=""),
-        margin=dict(t=20, b=10, l=10, r=10),
+        margin=dict(t=24, b=10, l=10, r=10),
         title_text="",
     )
     st.plotly_chart(fig, use_container_width=True)
-    cols = st.columns(3)
-    cols[0].metric("현재 총자산", fmt_short(last["total"]),
-                   help=f"정확히 {fmt_krw(last['total'])}")
-    cols[1].metric("시작 대비", f"{growth:+.0f}%",
-                   help=f"{fmt_short(first['total'])} → {fmt_short(last['total'])}")
-    cols[2].metric("기록 기간", f"{len(df)}개 시점",
-                   help=f"{pd.to_datetime(first['date']):%Y-%m} ~ {pd.to_datetime(last['date']):%Y-%m}")
+    if period != "전체":
+        pmin, pmax = fmt_short(df["total"].min()), fmt_short(df["total"].max())
+        st.caption(f"📌 {period} 변동 범위: **{pmin} ~ {pmax}** (y축 확대 표시)")
 
 
 def render_account_history(acc_hist: pd.DataFrame) -> None:
@@ -892,8 +923,15 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
                 "RAW 폴더에 새 파일을 떨어뜨릴 때마다 한 점씩 추가됩니다.")
         return
 
-    pivot = acc_hist.pivot_table(index="ts", columns="account",
-                                 values="eval_krw", aggfunc="last").sort_index()
+    # 기간 선택
+    period = st.radio("기간", ["전체", "최근 6개월", "최근 3개월", "최근 1개월"],
+                      horizontal=True, index=0, key="acc_period",
+                      label_visibility="collapsed")
+    fdf = _filter_period(acc_hist, "ts", period)
+
+    pivot = fdf.pivot_table(index="ts", columns="account",
+                            values="eval_krw", aggfunc="last").sort_index()
+    xcat = pd.to_datetime(pivot.index).strftime("%y.%m.%d")  # 균등 간격
 
     tab1, tab2 = st.tabs(["💰 평가액 (원)", "📊 증감률 (%, 첫 시점=0)"])
 
@@ -904,12 +942,15 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
         fig = go.Figure()
         for i, acc in enumerate(pivot.columns):
             fig.add_trace(go.Scatter(
-                x=pivot.index, y=pivot[acc], name=acc, mode="lines+markers",
+                x=xcat, y=pivot[acc], name=acc, mode="lines+markers",
                 line=dict(width=2, color=account_colors[i % len(account_colors)]),
+                connectgaps=True,
             ))
         fig.update_layout(hovermode="x unified", height=400,
                           yaxis_tickformat=",.0f", yaxis_title="평가액(원)",
-                          margin=dict(t=20, b=20, l=10, r=10))
+                          xaxis=dict(type="category"),
+                          margin=dict(t=20, b=20, l=10, r=10),
+                          legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
@@ -920,13 +961,16 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
         fig = go.Figure()
         for i, acc in enumerate(norm.columns):
             fig.add_trace(go.Scatter(
-                x=norm.index, y=norm[acc], name=acc, mode="lines+markers",
+                x=xcat, y=norm[acc], name=acc, mode="lines+markers",
                 line=dict(width=2, color=account_colors[i % len(account_colors)]),
+                connectgaps=True,
             ))
         fig.add_hline(y=0, line_dash="dot", line_color="gray")
         fig.update_layout(hovermode="x unified", height=400,
                           yaxis_title="증감률(%)", yaxis_ticksuffix="%",
-                          margin=dict(t=20, b=20, l=10, r=10))
+                          xaxis=dict(type="category"),
+                          margin=dict(t=20, b=20, l=10, r=10),
+                          legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig, use_container_width=True)
 
     # 계좌별 최신 변동 요약
