@@ -853,61 +853,155 @@ def _filter_period(df: pd.DataFrame, datecol: str, period: str) -> pd.DataFrame:
     return sub if len(sub) >= 2 else df.tail(max(2, len(df) // 3))
 
 
+def _nearest_before(df: pd.DataFrame, datecol: str, valcol: str,
+                    target: pd.Timestamp, tol_days: float) -> tuple[float, pd.Timestamp] | None:
+    """target 에 가장 가까운(과거 우선) 행의 값. 허용오차 밖이면 None."""
+    d = df.copy()
+    d[datecol] = pd.to_datetime(d[datecol])
+    d = d[d[datecol] < d[datecol].max()]  # 현재(마지막) 시점 제외
+    if d.empty:
+        return None
+    d["dist"] = (d[datecol] - target).abs().dt.days
+    best = d.nsmallest(1, "dist").iloc[0]
+    if best["dist"] > tol_days:
+        return None
+    return float(best[valcol]), best[datecol]
+
+
+def _period_chips(full: pd.DataFrame) -> None:
+    """기간별 자산 변동 칩 — 1주/1개월/3개월/1년/최고점 대비 (자산앱 스타일)."""
+    cur = float(full["total"].iloc[-1])
+    last_date = pd.to_datetime(full["date"]).max()
+
+    chips: list[tuple[str, str, str, str]] = []  # (label, value, delta, help)
+    for days, name in [(7, "1주 전"), (30, "1개월 전"), (91, "3개월 전"), (365, "1년 전")]:
+        hit = _nearest_before(full, "date", "total", last_date - pd.Timedelta(days=days),
+                              tol_days=days * 0.75 + 4)
+        if hit is None:
+            chips.append((name, "—", "", "해당 시점 근처 데이터 없음 (누적되면 채워짐)"))
+        else:
+            base, refd = hit
+            diff = cur - base
+            pct = diff / base * 100 if base else 0
+            chips.append((name, f"{diff/1e8:+.2f}억", f"{pct:+.1f}%",
+                          f"기준 {refd:%Y-%m-%d}: {fmt_short(base)} → 현재 {fmt_short(cur)}"))
+
+    # 최고점 대비 (드로다운)
+    imax = full["total"].idxmax()
+    peak = float(full.loc[imax, "total"])
+    peak_d = pd.to_datetime(full.loc[imax, "date"])
+    dd = (cur / peak - 1) * 100 if peak else 0
+    chips.append(("🏔️ 최고점 대비", f"{dd:+.1f}%", f"{(cur-peak)/1e8:+.2f}억",
+                  f"최고 {fmt_short(peak)} ({peak_d:%Y-%m-%d})"))
+
+    cols = st.columns(len(chips))
+    for col, (name, val, delta, hlp) in zip(cols, chips):
+        col.metric(name, val, delta=delta if delta else None,
+                   delta_color="off", help=hlp)
+
+
+def _selective_label(vals: pd.Series) -> list[str]:
+    """시작·최고·최저·현재 지점만 라벨 (전부 라벨 = 클러터/잘림 원인)."""
+    n = len(vals)
+    idx = {0, n - 1, int(vals.values.argmax()), int(vals.values.argmin())}
+    return [fmt_short(v) if i in idx else "" for i, v in enumerate(vals)]
+
+
 def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
                        compact: bool = False) -> None:
-    """총자산 추이 — 과거(엑셀) + 현재(자동). 기간 선택 + y축 자동확대로 변동폭 강조."""
+    """총자산 추이 — 기간별 변동 칩 + 최고점 마커 + 월별 증감. 잘림 없는 라벨."""
     if total_hist is None or total_hist.empty or len(total_hist) < 2:
         st.info("총자산 추이 데이터가 아직 부족합니다.")
         return
-    full = total_hist.sort_values("date").copy()
+    full = total_hist.sort_values("date").reset_index(drop=True).copy()
 
-    # 현재값·변동 요약 (항상 전체 기준)
+    # ── 헤드라인: 현재 총자산 + 직전 대비 ──
     last = full.iloc[-1]
     prev = full.iloc[-2]
     chg_abs = last["total"] - prev["total"]
     chg_pct = (chg_abs / prev["total"] * 100) if prev["total"] else 0
     first = full.iloc[0]
     growth = (last["total"] / first["total"] - 1) * 100 if first["total"] else 0
-    k1, k2, k3 = st.columns(3)
+    k1, k2, k3 = st.columns([2, 1, 1])
     k1.metric("💰 현재 총자산", fmt_short(last["total"]),
               delta=f"직전 대비 {chg_abs/1e8:+.2f}억 ({chg_pct:+.1f}%)",
-              help=f"정확히 {fmt_krw(last['total'])}")
+              help=f"정확히 {fmt_krw(last['total'])} · 직전 기록 {pd.to_datetime(prev['date']):%m/%d}")
     k2.metric("📈 시작 대비", f"{growth:+.0f}%",
-              help=f"{fmt_short(first['total'])} → {fmt_short(last['total'])}")
-    k3.metric("🗓️ 기록", f"{len(full)}개 시점",
-              help=f"{pd.to_datetime(first['date']):%Y-%m} ~ {pd.to_datetime(last['date']):%Y-%m}")
+              help=f"{fmt_short(first['total'])} ({pd.to_datetime(first['date']):%y.%m}) → 현재")
+    k3.metric("🗓️ 기록", f"{len(full)}개 시점")
 
-    # 기간 선택
-    period = st.radio("기간", ["전체", "최근 6개월", "최근 3개월", "최근 1개월"],
-                      horizontal=True, index=0, key="tt_period",
-                      label_visibility="collapsed")
-    df = _filter_period(full, "date", period)
-    xlabels = pd.to_datetime(df["date"]).dt.strftime("%y.%m.%d")
+    # ── 기간별 변동 칩 (1주/1개월/3개월/1년/최고점) ──
+    _period_chips(full)
 
-    fig = go.Figure(go.Scatter(
-        x=xlabels, y=df["total"], mode="lines+markers+text",
-        line=dict(color=accent, width=3, shape="spline"),
-        marker=dict(size=8),
-        fill="tozeroy", fillcolor=_hex_to_rgba(accent, 0.10),
-        text=[fmt_short(v) for v in df["total"]],
-        textposition="top center", textfont=dict(size=10),
-        hovertemplate="%{x}<br>총자산 %{y:,.0f}원<extra></extra>",
-    ))
-    # y축을 해당 기간 데이터 범위로 확대(0 시작 안 함) → 변동폭 잘 보임
-    ymin, ymax = float(df["total"].min()), float(df["total"].max())
-    span = ymax - ymin
-    pad = span * 0.25 if span > 0 else ymax * 0.05
-    fig.update_layout(
-        height=300 if compact else 360,
-        yaxis=dict(range=[ymin - pad, ymax + pad], tickformat=",.0f", title="원"),
-        xaxis=dict(type="category", title=""),
-        margin=dict(t=24, b=10, l=10, r=10),
-        title_text="",
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    if period != "전체":
-        pmin, pmax = fmt_short(df["total"].min()), fmt_short(df["total"].max())
-        st.caption(f"📌 {period} 변동 범위: **{pmin} ~ {pmax}** (y축 확대 표시)")
+    # ── 추이 / 월별 증감 탭 ──
+    t_trend, t_monthly = st.tabs(["📈 추이", "📊 월별 증감"])
+
+    with t_trend:
+        period = st.radio("기간", ["전체", "최근 6개월", "최근 3개월", "최근 1개월"],
+                          horizontal=True, index=0, key="tt_period",
+                          label_visibility="collapsed")
+        df = _filter_period(full, "date", period).reset_index(drop=True)
+        xlabels = pd.to_datetime(df["date"]).dt.strftime("%y.%m.%d")
+
+        fig = go.Figure(go.Scatter(
+            x=xlabels, y=df["total"], mode="lines+markers+text",
+            line=dict(color=accent, width=3, shape="spline"),
+            marker=dict(size=7),
+            fill="tozeroy", fillcolor=_hex_to_rgba(accent, 0.10),
+            text=_selective_label(df["total"]),
+            textposition="top center", textfont=dict(size=11),
+            cliponaxis=False,  # 라벨이 축 경계에서 잘리지 않게
+            hovertemplate="%{x}<br>총자산 %{y:,.0f}원<extra></extra>",
+        ))
+        # 최고점 마커
+        imax = int(df["total"].values.argmax())
+        fig.add_trace(go.Scatter(
+            x=[xlabels.iloc[imax]], y=[df["total"].iloc[imax]],
+            mode="markers", marker=dict(size=13, symbol="star", color="#F59F00"),
+            hovertemplate="최고점 %{y:,.0f}원<extra></extra>", showlegend=False,
+        ))
+        ymin, ymax = float(df["total"].min()), float(df["total"].max())
+        span = ymax - ymin
+        pad = span * 0.22 if span > 0 else ymax * 0.05
+        fig.update_layout(
+            height=310 if compact else 370,
+            yaxis=dict(range=[ymin - pad * 0.6, ymax + pad], tickformat=",.0f"),
+            xaxis=dict(type="category", title=""),
+            margin=dict(t=34, b=10, l=10, r=58),  # 오른쪽 여백 → 마지막 라벨 잘림 방지
+            title_text="", showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(f"⭐ 최고점 {fmt_short(df['total'].max())} · "
+                   f"라벨은 시작·최고·최저·현재만 표시 (나머지는 마우스 올리면 확인)")
+
+    with t_monthly:
+        m = full.copy()
+        m["date"] = pd.to_datetime(m["date"])
+        monthly = m.set_index("date")["total"].resample("ME").last().dropna()
+        delta = monthly.diff().dropna()
+        if delta.empty:
+            st.info("월별 증감을 계산할 데이터가 부족합니다.")
+        else:
+            xm = delta.index.strftime("%y.%m")
+            colors = ["#2BA84A" if v >= 0 else "#E03131" for v in delta.values]
+            fig = go.Figure(go.Bar(
+                x=xm, y=delta.values, marker_color=colors,
+                text=[f"{v/1e8:+.2f}억" for v in delta.values],
+                textposition="outside", cliponaxis=False,
+                textfont=dict(size=11),
+                hovertemplate="%{x}<br>%{y:+,.0f}원<extra></extra>",
+            ))
+            fig.update_layout(
+                height=310 if compact else 360,
+                yaxis=dict(tickformat=",.0f", range=[min(delta.min(), 0) * 1.35,
+                                                     max(delta.max(), 0) * 1.35]),
+                xaxis=dict(type="category"),
+                margin=dict(t=30, b=10, l=10, r=30),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            best_m = delta.idxmax()
+            st.caption(f"💡 월말 기준 증감. 최고의 달: **{best_m:%Y년 %m월} "
+                       f"({delta.max()/1e8:+.2f}억)**")
 
 
 def render_account_history(acc_hist: pd.DataFrame) -> None:
@@ -949,7 +1043,7 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
         fig.update_layout(hovermode="x unified", height=400,
                           yaxis_tickformat=",.0f", yaxis_title="평가액(원)",
                           xaxis=dict(type="category"),
-                          margin=dict(t=20, b=20, l=10, r=10),
+                          margin=dict(t=20, b=20, l=10, r=45),
                           legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -969,7 +1063,7 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
         fig.update_layout(hovermode="x unified", height=400,
                           yaxis_title="증감률(%)", yaxis_ticksuffix="%",
                           xaxis=dict(type="category"),
-                          margin=dict(t=20, b=20, l=10, r=10),
+                          margin=dict(t=20, b=20, l=10, r=45),
                           legend=dict(orientation="h", y=1.05))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -1104,7 +1198,7 @@ def render_timeseries() -> None:
         return
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📈 자산 추이", "💰 자산군별", "📊 수익률·환율", "📉 일별 증감률"
+        "📈 자산 추이", "💰 자산군별", "🆚 vs S&P500", "📉 일별 증감률"
     ])
 
     accent = st.session_state.get("accent", "#4C78A8")
@@ -1113,15 +1207,16 @@ def render_timeseries() -> None:
 
     with tab1:
         fig = go.Figure()
-        # 총자산 — 채워진 영역 (메인)
+        # 총자산 — 채워진 영역 (메인). 라벨은 핵심 지점만 (잘림·클러터 방지)
         fig.add_trace(go.Scatter(
             x=xlabels, y=df["gross_assets"], name="총자산",
             mode="lines+markers+text",
             line=dict(color=accent, width=2.5),
             marker=dict(size=7),
             fill="tozeroy", fillcolor=_hex_to_rgba(accent, 0.12),
-            text=[fmt_short(v) for v in df["gross_assets"]],
+            text=_selective_label(df["gross_assets"]),
             textposition="top center", textfont=dict(size=11),
+            cliponaxis=False,
             hovertemplate="%{x}<br>총자산 %{y:,.0f}원<extra></extra>",
         ))
         # 순자산(부채차감)이 총자산과 다를 때만 별도 라인
@@ -1140,7 +1235,7 @@ def render_timeseries() -> None:
             hovermode="x unified", height=400,
             yaxis=dict(range=[ymin - pad, ymax + pad], tickformat=",.0f", title="원"),
             xaxis=dict(type="category", title=None),
-            margin=dict(t=20, b=20, l=10, r=10),
+            margin=dict(t=30, b=20, l=10, r=58),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -1168,31 +1263,36 @@ def render_timeseries() -> None:
         st.plotly_chart(fig, use_container_width=True)
 
     with tab3:
+        # 같은 % 축에서 내 포폴 vs S&P500 비교 (이중축 제거 — 환율은 사이드바 참조)
         fig = go.Figure()
-        # 내 포트폴리오 누적 수익률을 시작점 0으로 정규화 (스냅샷 첫날 = 0%)
         base = df["total_eval"].iloc[0]
         my_norm = (df["total_eval"] / base - 1) * 100 if base else df["total_return"] * 100
 
-        fig.add_trace(go.Scatter(x=df["date"], y=my_norm,
-                                 name="내 포폴 누적(%)", yaxis="y1",
-                                 line=dict(color="#54A24B", width=2)))
+        fig.add_trace(go.Scatter(x=xlabels, y=my_norm,
+                                 name="내 포폴",
+                                 mode="lines+markers",
+                                 line=dict(color="#2BA84A", width=2.5)))
 
         spx_norm = _spx_normalized(df["date"])
         if spx_norm is not None:
-            fig.add_trace(go.Scatter(x=df["date"], y=spx_norm,
-                                     name="S&P500(%)", yaxis="y1",
-                                     line=dict(color="#4C78A8", width=1, dash="dash")))
+            fig.add_trace(go.Scatter(x=xlabels, y=spx_norm,
+                                     name="S&P500",
+                                     mode="lines",
+                                     line=dict(color="#4C78A8", width=1.5, dash="dash")))
 
-        fig.add_trace(go.Scatter(x=df["date"], y=df["usd_krw"],
-                                 name="USD/KRW", yaxis="y2",
-                                 line=dict(color="#9D755D", width=1, dash="dot")))
+        fig.add_hline(y=0, line_dash="dot", line_color="gray")
         fig.update_layout(
             hovermode="x unified", height=380,
-            yaxis=dict(title="수익률(%)", side="left"),
-            yaxis2=dict(title="환율", side="right", overlaying="y"),
-            margin=dict(t=20, b=20, l=10, r=10),
+            yaxis=dict(title="누적 수익률(%)", ticksuffix="%"),
+            xaxis=dict(type="category"),
+            margin=dict(t=30, b=20, l=10, r=40),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         st.plotly_chart(fig, use_container_width=True)
+        if spx_norm is not None and len(my_norm) > 0:
+            gap = float(my_norm.iloc[-1]) - float(spx_norm[-1])
+            verdict = "시장을 이기고 있음 🎉" if gap > 0 else "시장 대비 뒤처짐"
+            st.caption(f"📌 같은 기간 S&P500 대비 **{gap:+.1f}%p** — {verdict}")
 
     with tab4:
         d = df.copy()
@@ -1210,6 +1310,7 @@ def render_timeseries() -> None:
             name="일별 변동(%)",
             text=[f"{v:+.1f}%" for v in d["daily_pct"]],
             textposition="outside", textfont=dict(size=10),
+            cliponaxis=False,
             hovertemplate="%{x}<br>%{y:+.2f}%<extra></extra>",
         ))
         if len(d) >= 7:
@@ -1220,7 +1321,7 @@ def render_timeseries() -> None:
             ))
         fig.update_layout(hovermode="x unified", height=380,
                           yaxis_title="일별 변동률(%)", xaxis=dict(type="category"),
-                          margin=dict(t=20, b=20, l=10, r=10))
+                          margin=dict(t=34, b=20, l=10, r=40))
         st.plotly_chart(fig, use_container_width=True)
 
 
