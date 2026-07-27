@@ -185,6 +185,10 @@ def fmt_short(v: float) -> str:
     return f"{sign}{a:,.0f}"
 
 
+# 24시간 고정 클라우드 주소 (Streamlit Community Cloud)
+CLOUD_APP_URL = "https://jeremykim96-portfolio-dashboard-app-fzmnk9.streamlit.app"
+
+
 def _get_password() -> str:
     """비밀번호: Streamlit secrets(APP_PASSWORD) 우선, 없으면 1996."""
     try:
@@ -267,15 +271,12 @@ def render_sidebar(raw_meta: dict, raw_ts, fx_err: str | None, usd_krw: float,
 
         # 로컬(PC): 외부 접속 링크 + 데이터 폴더
         st.header("📱 외부 접속")
+        st.success(f"🌐 {CLOUD_APP_URL}")
+        st.caption("**고정 주소** — 폰 홈화면에 추가하세요. PC 꺼져도 24시간 작동 (같은 비밀번호).")
         ext = public_url()
         if ext:
-            st.success(f"✅ {ext}")
-            tlog_mtime = tunnel_log_mtime()
-            if tlog_mtime:
-                st.caption(f"터널 시작: {tlog_mtime:%Y-%m-%d %H:%M}")
-            st.caption("폰/태블릿 브라우저에서 위 주소로 접속 → 같은 비밀번호 입력")
-        else:
-            st.caption("ℹ️ 24시간 폰 접속은 클라우드 주소를 사용하세요 (PC가 꺼져도 작동).")
+            with st.expander("보조 주소 (PC 켜져 있을 때만, 재부팅 시 변경)"):
+                st.code(ext, language="text")
 
         st.divider()
 
