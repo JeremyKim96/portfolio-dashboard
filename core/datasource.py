@@ -83,7 +83,14 @@ def build_local_data() -> dict:
     holdings_df, cash_df_raw = split_holdings_and_cash(raw_df)
     stock_rows, coin_rows, cash_rows = build_rows_from_raw(holdings_df, cash_df_raw, meta_df)
 
+    from .insights import latest_raw_diff
+    try:
+        raw_diff = latest_raw_diff()
+    except Exception:
+        raw_diff = None
+
     return {
+        "raw_diff": raw_diff,
         "empty": False,
         "source": "local",
         "stock_rows": stock_rows,
@@ -139,6 +146,7 @@ def export_bundle() -> Path:
             "account_hist": _df_to_json(data["account_hist"]),
             "total_history": _df_to_json(data.get("total_history", pd.DataFrame(columns=["date", "total"]))),
             "snapshots": _df_to_json(data["snapshots"]),
+            "raw_diff": data.get("raw_diff"),
         }
 
     raw = json.dumps(bundle, ensure_ascii=False).encode("utf-8")
@@ -195,6 +203,7 @@ def load_bundle() -> dict:
         "account_hist": _df_from_json(bundle["account_hist"], ["ts"]),
         "total_history": _df_from_json(bundle.get("total_history", '{"columns":["date","total"],"data":[]}'), ["date"]),
         "snapshots": _df_from_json(bundle["snapshots"], ["date"]),
+        "raw_diff": bundle.get("raw_diff"),
         "raw_meta": {"name": bundle.get("raw_name"), "folder": "(클라우드)", "mtime": gen},
         "raw_ts": raw_ts,
         "generated_at": gen,
@@ -206,3 +215,32 @@ def get_dashboard_data() -> dict:
     if is_cloud():
         return load_bundle()
     return build_local_data()
+
+
+# ---------- 업로드 상태 (PC 전용) ----------
+LAST_PUSH_FILE = CLOUD_DATA_DIR / "last_push.json"
+
+
+def read_last_push() -> dict:
+    """마지막으로 클라우드에 올린 RAW 파일명·시각. 없으면 {}."""
+    try:
+        return json.loads(LAST_PUSH_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def write_last_push(raw_name: str | None) -> None:
+    CLOUD_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    LAST_PUSH_FILE.write_text(json.dumps(
+        {"raw_name": raw_name, "pushed_at": datetime.now().isoformat(timespec="seconds")},
+        ensure_ascii=False), encoding="utf-8")
+
+
+def cloud_sync_status() -> dict:
+    """PC: 최신 RAW 가 클라우드에 올라갔는지. {pending, latest, pushed, pushed_at}."""
+    from .raw_loader import latest_raw_path
+    p = latest_raw_path()
+    lp = read_last_push()
+    latest = p.name if p else None
+    return {"pending": bool(latest and latest != lp.get("raw_name")),
+            "latest": latest, "pushed": lp.get("raw_name"), "pushed_at": lp.get("pushed_at")}

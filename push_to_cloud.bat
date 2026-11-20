@@ -1,21 +1,16 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
-title 클라우드로 데이터 올리기
+title Cloud Upload
 
-echo ============================================
-echo   포트폴리오 데이터를 클라우드로 올립니다
-echo ============================================
-echo.
-
-if not exist ".venv\Scripts\python.exe" (
-    echo [오류] 가상환경이 없습니다. 먼저 run.bat을 한 번 실행하세요.
+if not exist "%~dp0.venv\Scripts\python.exe" (
+    echo [ERROR] venv not found. Run run.bat once first.
     pause
     exit /b 1
 )
 
-".venv\Scripts\python.exe" push_to_cloud.py
+"%~dp0.venv\Scripts\python.exe" "%~dp0push_to_cloud.py"
 
 echo.
-echo 완료. 창을 닫아도 됩니다.
+echo ----------------------------------------
+echo Done. You can close this window.
 pause >nul

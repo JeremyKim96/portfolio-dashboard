@@ -95,10 +95,81 @@ def inject_theme(mode: str, accent: str) -> None:
         sub = "#4A5360"; border = "rgba(0,0,0,0.06)"
     acc = accent
     acc_soft = _hex_to_rgba(acc, 0.12)
+    if mode == "night":
+        pos, neg, warn = "#51CF66", "#FF6B6B", "#FFC24B"
+    else:
+        pos, neg, warn = "#2B8A3E", "#E03131", "#B26B00"
 
     st.markdown(f"""
     <style>
+      :root {{
+        --card: {card}; --text: {text}; --sub: {sub}; --border: {border};
+        --acc: {acc}; --acc-soft: {acc_soft}; --pos: {pos}; --neg: {neg}; --warn: {warn};
+      }}
       .stApp {{ background: {bg}; color: {text}; }}
+      /* ── v3 디자인 요소 ── */
+      .hero {{ background: linear-gradient(135deg, {_hex_to_rgba(acc, 0.17)}, {_hex_to_rgba(acc, 0.03)});
+        border: 1px solid {_hex_to_rgba(acc, 0.30)}; border-radius: 18px; padding: 16px 20px 12px; margin: 2px 0 12px; }}
+      .hero-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 12px 22px; }}
+      .h-label {{ font-size: .8rem; font-weight: 700; color: var(--sub); }}
+      .h-val {{ font-size: 2.0rem; font-weight: 850; color: var(--text); line-height: 1.15; letter-spacing: -.02em; }}
+      .h-sub {{ font-size: .82rem; color: var(--sub); margin-top: 2px; }}
+      .h-foot {{ margin-top: 11px; padding-top: 9px; border-top: 1px dashed var(--border); font-size: .78rem; color: var(--sub); }}
+      .pos {{ color: var(--pos) !important; }}
+      .neg {{ color: var(--neg) !important; }}
+      .bcard {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 11px 14px; margin-bottom: 10px; }}
+      .bcard.red {{ border-left: 5px solid #E03131; }}
+      .bcard.yellow {{ border-left: 5px solid #F59F00; }}
+      .bcard.green {{ border-left: 5px solid #2BA84A; }}
+      .bcard.gray {{ border-left: 5px solid #868E96; }}
+      .bcard.acc {{ border-left: 5px solid var(--acc); }}
+      .bc-title {{ font-weight: 800; font-size: .95rem; color: var(--text); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }}
+      .bc-metric {{ font-weight: 800; white-space: nowrap; }}
+      .bc-body {{ font-size: .84rem; color: var(--sub); margin-top: 4px; line-height: 1.55; }}
+      .bc-body ul {{ margin: 4px 0 0 0; padding-left: 18px; }}
+      .grid2 {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 10px; }}
+      .grid-tiles {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); gap: 8px; margin: 6px 0 12px; }}
+      .tile {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 8px 11px; }}
+      .tile .t-l {{ font-size: .72rem; color: var(--sub); font-weight: 700; }}
+      .tile .t-v {{ font-size: 1.12rem; font-weight: 850; color: var(--text); }}
+      .tile .t-s {{ font-size: .7rem; color: var(--sub); }}
+      .tile.me {{ border: 1.5px solid var(--acc); background: var(--acc-soft); }}
+      .pill {{ display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .7rem; font-weight: 800; margin-left: 4px; vertical-align: middle; white-space: nowrap; }}
+      .pill.red {{ background: rgba(224,49,49,.14); color: var(--neg); }}
+      .pill.yellow {{ background: rgba(245,159,0,.18); color: var(--warn); }}
+      .pill.green {{ background: rgba(43,168,74,.15); color: var(--pos); }}
+      .pill.gray {{ background: rgba(134,142,150,.16); color: var(--sub); }}
+      .pill.acc {{ background: var(--acc-soft); color: var(--acc); }}
+      ul.brief {{ list-style: none; padding-left: 0; margin: 4px 0 0 0; }}
+      ul.brief li {{ margin: 5px 0; line-height: 1.55; font-size: .9rem; color: var(--text); }}
+      .ev-week {{ font-weight: 800; color: var(--sub); font-size: .8rem; margin: 14px 0 2px; }}
+      .ev-row {{ display: flex; gap: 12px; padding: 8px 2px; border-bottom: 1px solid var(--border); align-items: flex-start; }}
+      .ev-d {{ min-width: 66px; text-align: center; }}
+      .dday {{ font-weight: 850; font-size: .8rem; border-radius: 9px; padding: 3px 6px; background: var(--acc-soft); color: var(--acc); }}
+      .dday.hot {{ background: rgba(224,49,49,.14); color: var(--neg); }}
+      .ev-date {{ font-size: .74rem; color: var(--sub); margin-top: 3px; }}
+      .ev-title {{ font-weight: 750; font-size: .9rem; color: var(--text); }}
+      .ev-note {{ font-size: .78rem; color: var(--sub); margin-top: 2px; }}
+      .stars {{ color: #F59F00; font-size: .72rem; letter-spacing: -1px; margin-left: 3px; }}
+      .hl {{ font-size: .86rem; margin: 6px 0; line-height: 1.45; }}
+      .hl a {{ color: var(--text) !important; text-decoration: none; font-weight: 650; }}
+      .hl a:hover {{ color: var(--acc) !important; text-decoration: underline; }}
+      .hl .src {{ color: var(--sub); font-size: .72rem; }}
+      .sig-row {{ display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); align-items: baseline; }}
+      .sig-row .nm {{ font-weight: 750; min-width: 180px; color: var(--text); }}
+      .sig-row .vl {{ font-weight: 800; min-width: 96px; color: var(--text); }}
+      .sig-row .mn {{ color: var(--sub); font-size: .8rem; }}
+      table.mini {{ width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: 6px; }}
+      table.mini th {{ color: var(--sub); font-weight: 700; text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--border); }}
+      table.mini td {{ text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--border); color: var(--text); }}
+      table.mini th:first-child, table.mini td:first-child {{ text-align: left; }}
+      div[data-testid="stSegmentedControl"] button {{ font-weight: 700; }}
+      @media (max-width: 680px) {{
+        .h-val {{ font-size: 1.55rem; }}
+        .sig-row {{ flex-wrap: wrap; gap: 4px 10px; }}
+        .sig-row .nm, .sig-row .vl {{ min-width: auto; }}
+        .grid2 {{ grid-template-columns: 1fr; }}
+      }}
       section[data-testid="stSidebar"] {{ background: {bg2}; border-right: 1px solid {border}; }}
       /* metric 카드화 */
       div[data-testid="stMetric"] {{
@@ -164,9 +235,15 @@ def inject_theme(mode: str, accent: str) -> None:
     """, unsafe_allow_html=True)
 
 
+def _now_kst() -> datetime:
+    """한국시간 (클라우드 서버는 UTC 라서 보정)."""
+    from core.events import KST
+    return datetime.now(KST).replace(tzinfo=None)
+
+
 def render_live_dot() -> None:
     """좌측 하단 실시간 갱신 인디케이터 (60초마다 자동 새로고침과 연동)."""
-    now = datetime.now().strftime("%H:%M:%S")
+    now = _now_kst().strftime("%H:%M:%S")
     st.markdown(
         f'<div id="live-dot"><span class="dot"></span>실시간 · {now} 갱신</div>',
         unsafe_allow_html=True,
@@ -211,7 +288,7 @@ def gate_password() -> None:
     st.caption("비밀번호를 입력하세요.")
     with st.form("login", clear_on_submit=True):
         pwd = st.text_input("비밀번호", type="password")
-        submitted = st.form_submit_button("입장", use_container_width=True)
+        submitted = st.form_submit_button("입장", width="stretch")
     if submitted:
         if pwd == PASSWORD:
             st.session_state.authed = True
@@ -262,7 +339,7 @@ def render_sidebar(raw_meta: dict, raw_ts, fx_err: str | None, usd_krw: float,
                 st.caption(f"RAW 기준일시: {raw_ts:%Y-%m-%d %H:%M}")
             st.divider()
             st.metric("USD / KRW", f"{usd_krw:,.2f}")
-            if st.button("🔄 시장지표 새로고침", use_container_width=True):
+            if st.button("🔄 시장지표 새로고침", width="stretch"):
                 st.cache_data.clear()
                 st.rerun()
             if fx_err:
@@ -283,7 +360,7 @@ def render_sidebar(raw_meta: dict, raw_ts, fx_err: str | None, usd_krw: float,
         st.header("⚙️ 데이터")
         st.metric("USD / KRW", f"{usd_krw:,.2f}", help="60초마다 자동 갱신")
 
-        if st.button("🔄 시세 새로고침", use_container_width=True):
+        if st.button("🔄 시세 새로고침", width="stretch"):
             st.cache_data.clear()
             st.rerun()
 
@@ -425,7 +502,7 @@ def render_bubble(bubble: dict) -> None:
             },
         ))
         gauge.update_layout(height=280, margin=dict(t=50, b=10, l=20, r=20))
-        st.plotly_chart(gauge, use_container_width=True)
+        st.plotly_chart(gauge, width="stretch")
 
     with right:
         st.markdown(f"### {bubble['verdict']}  ·  **{score:.0f}점**")
@@ -448,7 +525,7 @@ def render_bubble(bubble: dict) -> None:
         fig.update_layout(height=240, xaxis=dict(range=[0, 110], title="과열도"),
                           yaxis=dict(autorange="reversed"),
                           margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # 구성요소별 상세 근거
     with st.expander("🔍 판독 근거 자세히 보기 (구성요소별 논리)", expanded=False):
@@ -546,7 +623,7 @@ def render_fear_greed_detail(fg: dict) -> None:
         },
     ))
     gauge.update_layout(height=240, margin=dict(t=40, b=20, l=20, r=20))
-    st.plotly_chart(gauge, use_container_width=True)
+    st.plotly_chart(gauge, width="stretch")
     if fg.get("advice"):
         st.info(f"📌 **투자 시사**: {fg['advice']}")
 
@@ -613,7 +690,7 @@ def _pie(df: pd.DataFrame, names_col: str, title: str, color_map: dict | None = 
                       hovertemplate="<b>%{label}</b><br>%{value:,.0f}원<br>%{percent}<extra></extra>")
     fig.update_layout(title=title, showlegend=False,
                       margin=dict(t=40, b=10, l=10, r=10), height=320)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def render_allocation_charts(all_rows: pd.DataFrame) -> None:
@@ -662,7 +739,7 @@ def render_top_and_pnl(invest_rows: pd.DataFrame, accent: str = "#4C78A8") -> No
                           xaxis=dict(visible=False),
                           margin=dict(t=10, b=10, l=10, r=20), height=320,
                           uniformtext=dict(minsize=10, mode="hide"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with right:
         st.subheader("종목별 손익 기여")
@@ -684,7 +761,7 @@ def render_top_and_pnl(invest_rows: pd.DataFrame, accent: str = "#4C78A8") -> No
                                      zerolinecolor="rgba(128,128,128,.4)"),
                           margin=dict(t=10, b=10, l=10, r=10), height=320,
                           uniformtext=dict(minsize=9, mode="hide"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 def render_family_panel(family_df: pd.DataFrame, my_net_eval: float) -> None:
@@ -731,7 +808,7 @@ def render_family_panel(family_df: pd.DataFrame, my_net_eval: float) -> None:
                     "비중(총자산)": f"{share*100:.2f}%" if share is not None else "—",
                     "메모": it["memo"],
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         with right:
             # 내 자산 + 가족 항목들을 한 도넛으로
             chart_rows = [{"구분": "내 순자산", "금액": float(my_net_eval)}]
@@ -746,7 +823,7 @@ def render_family_panel(family_df: pd.DataFrame, my_net_eval: float) -> None:
                                   hovertemplate="<b>%{label}</b><br>%{value:,.0f}원<br>%{percent}<extra></extra>")
                 fig.update_layout(title="운용 총자산 구성", showlegend=False,
                                   margin=dict(t=40, b=10, l=10, r=10), height=280)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
     else:
         st.info("📝 `portfolio.xlsx` → **family** 시트에 항목별 금액을 채우면 표시됩니다.")
 
@@ -774,6 +851,16 @@ def render_risk_panel(snapshots_df: pd.DataFrame) -> None:
         return
 
     st.subheader("📐 리스크 지표")
+    if not rm.get("dense"):
+        c1, c2, c3 = st.columns(3)
+        c1.metric("최대 낙폭(MDD)", f"{rm['mdd']*100:.1f}%",
+                  help="RAW 기록 기준 내 순자산의 최고점 대비 최대 하락폭 (입출금 포함).")
+        c2.metric("기록 간 최대 상승", f"{rm['best_day']*100:+.1f}%")
+        c3.metric("기록 간 최대 하락", f"{rm['worst_day']*100:+.1f}%")
+        st.caption(f"RAW 기록 {rm.get('n_obs', 0)}개 · 평균 간격 {rm.get('avg_gap', 0):.0f}일 — "
+                   "변동성·Sharpe 같은 '일별' 지표는 기록 간격이 넓어 계산하지 않습니다 "
+                   "(RAW를 자주 올릴수록 정확해져요).")
+        return
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("연환산 변동성", f"{rm['daily_vol_ann']*100:.1f}%",
               help="일별 수익률 표준편차 × √252. 20% 이상이면 변동 큰 편.")
@@ -795,15 +882,17 @@ def render_rebalancing(invest_rows: pd.DataFrame, meta_df: pd.DataFrame) -> None
         st.info("⚖️ `data/portfolio.xlsx`의 `meta` 시트에 **목표비중(%)** 컬럼을 채우면 리밸런싱 권장이 표시됩니다.")
         return
 
-    st.subheader("⚖️ 리밸런싱 시그널")
-    st.caption("목표비중 ±5%p 이탈 시 매수/매도 권장. 음수 필요액 = 매도.")
+    st.caption("내가 meta 시트에 정한 목표비중과의 차이 계산값입니다 (±5%p 이상이면 이탈 표시). "
+               "'목표까지 차액' = 목표비중에 맞추려면 늘거나 줄어야 하는 금액.")
 
     view = sig.copy()
+    view["종목명"] = [t if str(n).isascii() else n for n, t in zip(view["종목명"], view["티커"])]
     view["현재비중"] = (view["현재비중"] * 100).map(lambda x: f"{x:.2f}%")
     view["목표비중"] = (view["목표비중"] * 100).map(lambda x: f"{x:.1f}%")
     view["차이(%p)"] = (view["차이(%p)"] * 100).map(lambda x: f"{x:+.2f}")
     view["필요액(KRW)"] = view["필요액(KRW)"].map(lambda x: f"{x:+,.0f}")
-    st.dataframe(view, use_container_width=True, hide_index=True)
+    view = view.rename(columns={"필요액(KRW)": "목표까지 차액(원)"})
+    st.dataframe(view, width="stretch", hide_index=True)
 
 
 def render_diagnostics(invest_rows: pd.DataFrame) -> None:
@@ -838,7 +927,7 @@ def render_diagnostics(invest_rows: pd.DataFrame) -> None:
     view["MA200대비"] = view["MA200대비"].map(lambda x: f"{x*100:+.1f}%")
     view["변동성"] = view["변동성"].map(lambda x: f"{x*100:.0f}%" if x else "—")
     view["평가금액"] = view["평가금액"].map(lambda x: f"{x:,.0f}")
-    st.dataframe(view, use_container_width=True, hide_index=True)
+    st.dataframe(view, width="stretch", hide_index=True)
 
 
 def _filter_period(df: pd.DataFrame, datecol: str, period: str) -> pd.DataFrame:
@@ -901,6 +990,24 @@ def _period_chips(full: pd.DataFrame) -> None:
                    delta_color="off", help=hlp)
 
 
+def _eok_ticks(lo: float, hi: float, n: int = 5) -> tuple[list[float], list[str]]:
+    """y축 눈금을 '억' 단위로 (1,500,000,000 → 15억)."""
+    span = max(hi - lo, 1.0)
+    step = span / n
+    for s_ in [1e6, 2e6, 5e6, 1e7, 2e7, 2.5e7, 5e7, 1e8, 2e8, 2.5e8, 5e8, 1e9, 2e9, 5e9]:
+        if s_ >= step:
+            step = s_
+            break
+    import math as _m
+    v = _m.ceil(lo / step) * step
+    vals, txt = [], []
+    while v <= hi + 1e-6 and len(vals) < 20:
+        vals.append(v)
+        txt.append(f"{v/1e8:g}억" if abs(v) >= 1e8 or v == 0 else f"{v/1e4:,.0f}만")
+        v += step
+    return vals, txt
+
+
 def _selective_label(vals: pd.Series) -> list[str]:
     """시작·최고·최저·현재 지점만 라벨 (전부 라벨 = 클러터/잘림 원인)."""
     n = len(vals)
@@ -925,7 +1032,7 @@ def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
     growth = (last["total"] / first["total"] - 1) * 100 if first["total"] else 0
     k1, k2, k3 = st.columns([2, 1, 1])
     k1.metric("💰 현재 총자산", fmt_short(last["total"]),
-              delta=f"직전 대비 {chg_abs/1e8:+.2f}억 ({chg_pct:+.1f}%)",
+              delta=f"{chg_abs/1e8:+.2f}억 ({chg_pct:+.1f}%) · 직전 기록 대비",
               help=f"정확히 {fmt_krw(last['total'])} · 직전 기록 {pd.to_datetime(prev['date']):%m/%d}")
     k2.metric("📈 시작 대비", f"{growth:+.0f}%",
               help=f"{fmt_short(first['total'])} ({pd.to_datetime(first['date']):%y.%m}) → 현재")
@@ -964,14 +1071,16 @@ def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
         ymin, ymax = float(df["total"].min()), float(df["total"].max())
         span = ymax - ymin
         pad = span * 0.22 if span > 0 else ymax * 0.05
+        lo_y, hi_y = ymin - pad * 0.6, ymax + pad
+        tv, tt = _eok_ticks(lo_y, hi_y)
         fig.update_layout(
             height=310 if compact else 370,
-            yaxis=dict(range=[ymin - pad * 0.6, ymax + pad], tickformat=",.0f"),
+            yaxis=dict(range=[lo_y, hi_y], tickvals=tv, ticktext=tt),
             xaxis=dict(type="category", title=""),
             margin=dict(t=34, b=10, l=10, r=58),  # 오른쪽 여백 → 마지막 라벨 잘림 방지
             title_text="", showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(f"⭐ 최고점 {fmt_short(df['total'].max())} · "
                    f"라벨은 시작·최고·최저·현재만 표시 (나머지는 마우스 올리면 확인)")
 
@@ -999,7 +1108,7 @@ def render_total_trend(total_hist: pd.DataFrame, accent: str = "#4C78A8",
                 xaxis=dict(type="category"),
                 margin=dict(t=30, b=10, l=10, r=30),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             best_m = delta.idxmax()
             st.caption(f"💡 월말 기준 증감. 최고의 달: **{best_m:%Y년 %m월} "
                        f"({delta.max()/1e8:+.2f}억)**")
@@ -1046,7 +1155,7 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
                           xaxis=dict(type="category"),
                           margin=dict(t=20, b=20, l=10, r=45),
                           legend=dict(orientation="h", y=1.05))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with tab2:
         norm = pivot.copy()
@@ -1066,7 +1175,7 @@ def render_account_history(acc_hist: pd.DataFrame) -> None:
                           xaxis=dict(type="category"),
                           margin=dict(t=20, b=20, l=10, r=45),
                           legend=dict(orientation="h", y=1.05))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # 계좌별 최신 변동 요약
     if len(pivot) >= 2:
@@ -1115,7 +1224,7 @@ def render_monthly_heatmap(snapshots_df: pd.DataFrame) -> None:
         margin=dict(t=40, b=20, l=10, r=10),
         yaxis=dict(autorange="reversed"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def render_change_heatmap(invest_rows: pd.DataFrame) -> None:
@@ -1186,12 +1295,13 @@ def render_change_heatmap(invest_rows: pd.DataFrame) -> None:
         margin=dict(t=50, b=20, l=10, r=10),
         yaxis=dict(autorange="reversed"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
-def render_timeseries() -> None:
+def render_timeseries(df: pd.DataFrame | None = None) -> None:
     st.subheader("시계열 추이")
-    df = load_snapshots()
+    if df is None:
+        df = load_snapshots()  # 클라우드는 번들의 snapshots 를 넘겨받음
     if df.empty or len(df) < 2:
         st.info("📅 데이터가 누적되면 추이 그래프가 표시됩니다. (앱을 실행할 때마다 하루 단위로 자동 저장됨)")
         if not df.empty:
@@ -1199,7 +1309,7 @@ def render_timeseries() -> None:
         return
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📈 자산 추이", "💰 자산군별", "🆚 vs S&P500", "📉 일별 증감률"
+        "📈 자산 추이", "💰 자산군별", "🆚 vs S&P500", "📉 기록별 증감률"
     ])
 
     accent = st.session_state.get("accent", "#4C78A8")
@@ -1239,7 +1349,7 @@ def render_timeseries() -> None:
             margin=dict(t=30, b=20, l=10, r=58),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         latest = df.iloc[-1]
         first = df.iloc[0]
         chg = (latest["gross_assets"] - first["gross_assets"]) / first["gross_assets"] * 100 if first["gross_assets"] else 0
@@ -1261,7 +1371,7 @@ def render_timeseries() -> None:
         fig.update_layout(hovermode="x unified", height=380,
                           yaxis_tickformat=",.0f", xaxis=dict(type="category", title=None),
                           margin=dict(t=20, b=20, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with tab3:
         # 같은 % 축에서 내 포폴 vs S&P500 비교 (이중축 제거 — 환율은 사이드바 참조)
@@ -1289,7 +1399,7 @@ def render_timeseries() -> None:
             margin=dict(t=30, b=20, l=10, r=40),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         if spx_norm is not None and len(my_norm) > 0:
             gap = float(my_norm.iloc[-1]) - float(spx_norm[-1])
             verdict = "시장을 이기고 있음 🎉" if gap > 0 else "시장 대비 뒤처짐"
@@ -1323,7 +1433,7 @@ def render_timeseries() -> None:
         fig.update_layout(hovermode="x unified", height=380,
                           yaxis_title="일별 변동률(%)", xaxis=dict(type="category"),
                           margin=dict(t=34, b=20, l=10, r=40))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 def _spx_normalized(dates: pd.Series) -> pd.Series | None:
@@ -1393,7 +1503,7 @@ def render_table(stock_rows: pd.DataFrame, coin_rows: pd.DataFrame,
             st.info("내역 없음")
         else:
             st.dataframe(_format_table(combined, show_account=False),
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
 
     with tabs[1]:
         if stock_rows.empty:
@@ -1404,22 +1514,567 @@ def render_table(stock_rows: pd.DataFrame, coin_rows: pd.DataFrame,
             df = stock_rows if account_filter == "전체" \
                 else stock_rows[stock_rows["계좌"] == account_filter]
             st.dataframe(_format_table(df, show_account=True),
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
 
     with tabs[2]:
         if coin_rows.empty:
             st.info("암호화폐 보유내역이 없습니다.")
         else:
             st.dataframe(_format_table(coin_rows, show_account=False),
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
 
     with tabs[3]:
         if cash_rows.empty:
             st.info("현금/부채 내역이 없습니다.")
         else:
             st.dataframe(_format_table(cash_rows, show_account=False),
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
             st.caption("💡 대출잔액은 음수(-)로 입력. 자동으로 부채에 잡힙니다.")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  v3 대개편 — 히어로 · 브리핑 · 방향성 진단 · 왜 움직였나 · 일정 · 전망
+# ──────────────────────────────────────────────────────────────────────
+import html as _html
+
+from core.calc import _weighted_change
+from core.events import (dday_label, economic_calendar_this_week, fmt_event_date,
+                         upcoming_events)
+from core.insights import briefing, direction_checks, stress_test
+from core.market_story import (fmt_level, fmt_move, korean_headlines, period_moves,
+                               story_summary, theme_breakdown)
+from core.outlook import (CLAUDE_NOTE, analog_studies, board_verdict, market_signals,
+                          scenarios, signal_board)
+
+_LVL_DOT = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪"}
+
+
+def esc(t) -> str:
+    """HTML 이스케이프 + 마크다운 오작동 문자($ 수식, ~ 취소선) 무력화."""
+    s = _html.escape(str("" if t is None else t), quote=True)
+    return s.replace("$", "&#36;").replace("~", "&#126;")
+
+
+def _md_bold(t: str) -> str:
+    return _re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", esc(t))
+
+
+def _html_block(s: str) -> None:
+    # 줄바꿈·들여쓰기 없는 한 줄 HTML (마크다운 코드블록 오인 방지)
+    st.markdown(s, unsafe_allow_html=True)
+
+
+def _cls(v: float) -> str:
+    return "pos" if v > 0 else ("neg" if v < 0 else "")
+
+
+def _eok(v: float) -> str:
+    """부호 있는 억/만 표기."""
+    v = float(v or 0)
+    a = abs(v)
+    sign = "+" if v > 0 else ("-" if v < 0 else "")
+    if a >= 1e8:
+        return f"{sign}{a/1e8:.2f}억"
+    if a >= 1e4:
+        return f"{sign}{a/1e4:,.0f}만"
+    return f"{sign}{a:,.0f}"
+
+
+def _short_name(name: str, ticker: str) -> str:
+    name = str(name or "")
+    return name if (name and len(name) <= 8 and not name.isascii()) else (ticker or name[:10])
+
+
+def _diff_dates(diff: dict) -> tuple[str, str]:
+    try:
+        p = datetime.fromisoformat(diff["prev_ts"]).strftime("%m/%d")
+        c = datetime.fromisoformat(diff["cur_ts"]).strftime("%m/%d")
+        return p, c
+    except Exception:
+        return "직전", "최신"
+
+
+# ---------- 업로드 상태 배너 ----------
+def render_sync_banner(cloud: bool, data: dict, sync: dict | None) -> None:
+    if cloud:
+        gen = data.get("generated_at")
+        if gen is not None:
+            age = (_now_kst() - gen).days
+            if age >= 3:
+                st.warning(f"☁️ 이 화면의 자산 데이터는 **{gen:%m/%d} 업로드분 ({age}일 전)** 입니다. "
+                           "최신 RAW를 보려면 PC에서 「자산 클라우드 올리기」를 실행하세요. "
+                           "(시장 지표·뉴스·일정은 실시간)")
+        return
+    if not sync or not sync.get("pending"):
+        return
+    c1, c2 = st.columns([4, 1.4])
+    with c1:
+        when = ""
+        if sync.get("pushed_at"):
+            try:
+                when = f" · 마지막 업로드 {datetime.fromisoformat(sync['pushed_at']):%m/%d %H:%M}"
+            except ValueError:
+                pass
+        st.warning(f"📤 새 RAW **{sync['latest']}** 가 아직 폰(클라우드)에 올라가지 않았어요{when}")
+    with c2:
+        if st.button("☁️ 지금 폰으로 올리기", width="stretch", type="primary",
+                     key="push_now"):
+            with st.spinner("암호화 후 업로드 중… (10~30초)"):
+                try:
+                    from push_to_cloud import push
+                    ok, msg = push(log=lambda *_: None)
+                except Exception as e:  # noqa: BLE001
+                    ok, msg = False, f"오류: {e}"
+            (st.success if ok else st.error)(msg)
+
+
+# ---------- 히어로 ----------
+def render_hero(s: dict, fs: dict, diff: dict | None, raw_ts, cloud: bool, gen_at) -> None:
+    ret = float(s.get("total_return", 0) or 0)
+    pnl = float(s.get("total_pnl", 0) or 0)
+    blocks = [
+        '<div><div class="h-label">🟩 운용 총자산 · 내+가족−대출</div>'
+        f'<div class="h-val">{esc(fmt_short(fs["total_managed"]))}</div>'
+        f'<div class="h-sub">가족 순자산 {esc(fmt_short(fs["family_total"]))} 포함 · '
+        f'내 비중 {fs["my_share"]*100:.0f}%</div></div>',
+        '<div><div class="h-label">🟦 내 투자자산 (순자산)</div>'
+        f'<div class="h-val">{esc(fmt_short(s["total_eval"]))}</div>'
+        f'<div class="h-sub">수익률 <b class="{_cls(ret)}">{ret*100:+.1f}%</b> · '
+        f'평가손익 <b class="{_cls(pnl)}">{esc(_eok(pnl))}</b></div></div>',
+    ]
+    if diff:
+        d = float(diff.get("delta", 0))
+        p, c = _diff_dates(diff)
+        pct = d / diff["prev_total"] * 100 if diff.get("prev_total") else 0
+        blocks.append(
+            f'<div><div class="h-label">📄 지난 RAW 대비 ({p} → {c})</div>'
+            f'<div class="h-val {_cls(d)}">{esc(_eok(d))} <span style="font-size:1rem">({pct:+.1f}%)</span></div>'
+            f'<div class="h-sub">시장 변동 <b class="{_cls(diff["market_effect"])}">{esc(_eok(diff["market_effect"]))}</b>'
+            f' · 매매·입출금 {esc(_eok(diff["flow_effect"]))}</div></div>')
+    dc, wc = float(s.get("day_change", 0) or 0), float(s.get("week_change", 0) or 0)
+    foot = [f'오늘 <b class="{_cls(dc)}">{dc*100:+.2f}%</b>',
+            f'최근 1주 <b class="{_cls(wc)}">{wc*100:+.2f}%</b>']
+    if raw_ts:
+        foot.append(f"📄 RAW 기준 {raw_ts:%Y-%m-%d %H:%M}")
+    if cloud and gen_at is not None:
+        foot.append(f"☁️ 업로드 {gen_at:%m/%d %H:%M}")
+    _html_block(f'<div class="hero"><div class="hero-grid">{"".join(blocks)}</div>'
+                f'<div class="h-foot">{" · ".join(foot)}</div></div>')
+
+
+def render_market_strip(fg: dict, vix: float | None, regime: dict, temp: dict) -> None:
+    m1, m2, m3, m4 = st.columns(4)
+    if fg:
+        m1.metric("😨 공포·탐욕", f"{fg['score']:.0f}", delta=_plain(fg.get("label", "")),
+                  delta_color="off", help="CNN Fear & Greed Index (0=극공포·100=극탐욕)")
+    else:
+        m1.metric("😨 공포·탐욕", "—", help="API 응답 없음")
+    if vix is not None:
+        m2.metric(f"{vix_color(vix)} VIX", f"{vix:,.1f}", help="변동성지수. 20↑ 🟡 주의 · 30↑ 🔴 공포")
+    else:
+        m2.metric("VIX", "—")
+    if regime:
+        m3.metric("🏛️ S&P 국면", _plain(regime.get("status", "—")),
+                  delta=f"50일선 {regime['vs_ma50_pct']*100:+.1f}%", delta_color="off")
+    else:
+        m3.metric("🏛️ S&P 국면", "—")
+    m4.metric("🌡️ 컨디션", _plain(temp["label"]) if temp else "—",
+              help=temp.get("advice", "") if temp else "")
+
+
+def render_briefing(items: list[tuple[str, str]]) -> None:
+    if not items:
+        return
+    lis = "".join(f"<li>{icon} {text}</li>" for icon, text in items)
+    _html_block(f'<div class="bcard acc"><div class="bc-title"><span>🗞️ 오늘의 브리핑</span>'
+                f'<span class="pill gray">{_now_kst():%m/%d %H:%M} 기준</span></div>'
+                f'<ul class="brief">{lis}</ul></div>')
+
+
+# ---------- 방향성 진단 ----------
+def _card_html(c: dict) -> str:
+    return (f'<div class="bcard {c["level"]}"><div class="bc-title">'
+            f'<span>{_LVL_DOT.get(c["level"], "")} {esc(c["title"])}</span>'
+            f'<span class="bc-metric">{esc(c.get("metric", ""))}</span></div>'
+            f'<div class="bc-body">{esc(c["body"])}</div></div>')
+
+
+def render_direction(diag: dict, compact: bool = False) -> None:
+    title, desc = diag["stance"]
+    _html_block(f'<div class="bcard acc"><div class="bc-title"><span>🧭 종합 방향성: {esc(title)}</span>'
+                f'<span><span class="pill red">위험 {diag["reds"]}</span>'
+                f'<span class="pill yellow">주의 {diag["yellows"]}</span></span></div>'
+                f'<div class="bc-body">{esc(desc)}</div></div>')
+    cards = diag["cards"]
+    if compact:
+        cards = [c for c in cards if c["level"] in ("red", "yellow")][:4] or cards[:2]
+    _html_block('<div class="grid2">' + "".join(_card_html(c) for c in cards) + "</div>")
+
+
+def render_raw_waterfall(diff: dict | None, accent: str, compact: bool = False) -> None:
+    if not diff:
+        st.info("RAW 파일이 2개 이상 쌓이면 '직전 RAW 대비 무엇이 바뀌었는지'가 표시됩니다. "
+                "(클라우드는 다음 업로드부터 표시)")
+        return
+    p, c = _diff_dates(diff)
+    movers = sorted([t for t in diff["tickers"] if abs(t["price_effect"]) >= 1],
+                    key=lambda t: abs(t["price_effect"]), reverse=True)
+    top = movers[:6 if compact else 9]
+    rest = sum(t["price_effect"] for t in movers[len(top):])
+    labels = [f"{p} 계좌 합계"] + [_short_name(t["name"], t["ticker"]) for t in top]
+    values = [diff["prev_total"]] + [t["price_effect"] for t in top]
+    measures = ["absolute"] + ["relative"] * len(top)
+    if abs(rest) >= 1:
+        labels.append("기타 종목")
+        values.append(rest)
+        measures.append("relative")
+    labels += ["매매·입출금", f"{c} 계좌 합계"]
+    values += [diff["flow_effect"], 0]
+    measures += ["relative", "total"]
+    text = [fmt_short(diff["prev_total"])] + [_eok(v) for v in values[1:-1]] + [fmt_short(diff["cur_total"])]
+
+    cum, lo, hi = 0.0, None, None
+    for v, m in zip(values, measures):
+        cum = v if m == "absolute" else (cum if m == "total" else cum + v)
+        lo = cum if lo is None else min(lo, cum)
+        hi = cum if hi is None else max(hi, cum)
+    span = max(hi - lo, abs(hi) * 0.05, 1.0)
+    fig = go.Figure(go.Waterfall(
+        orientation="h", y=labels, x=values, measure=measures, text=text,
+        textposition="outside", cliponaxis=False,
+        increasing=dict(marker=dict(color="#2BA84A")),
+        decreasing=dict(marker=dict(color="#E03131")),
+        totals=dict(marker=dict(color=accent)),
+        connector=dict(line=dict(color="rgba(128,128,128,.35)", width=1)),
+        customdata=[f"{v:+,.0f}원" if m == "relative" else f"{fmt_krw(diff['cur_total'] if m == 'total' else v)}"
+                    for v, m in zip(values, measures)],
+        hovertemplate="%{y}<br>%{customdata}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=(300 if compact else 380) + 12 * len(labels),
+        yaxis=dict(autorange="reversed", type="category"),
+        xaxis=dict(range=[lo - span * 0.45, hi + span * 0.35], tickformat=",.0f", showgrid=False,
+                   visible=False),
+        margin=dict(l=10, r=70, t=10, b=10), showlegend=False,
+    )
+    st.plotly_chart(fig, width="stretch")
+    st.caption(f"🟥 하락 · 🟩 상승 = 가격 변동으로 인한 평가액 변화 (직전 수량 기준). "
+               f"'매매·입출금' = 수량 변화·예수금 증감·계좌 추가/제외 · 기간 {diff.get('days') or '?'}일")
+
+
+def render_raw_change_tables(diff: dict | None) -> None:
+    if not diff:
+        return
+    acc = pd.DataFrame(diff.get("accounts", []))
+    if not acc.empty:
+        st.markdown("**🏦 계좌별 변화**")
+        view = pd.DataFrame({
+            "계좌": acc["account"],
+            "직전": acc["prev"].map(lambda v: fmt_short(v) if pd.notna(v) else "—"),
+            "최신": acc["cur"].map(lambda v: fmt_short(v) if pd.notna(v) else "—"),
+            "변화": acc["delta"].map(_eok),
+            "상태": acc["status"],
+        })
+        st.dataframe(view, width="stretch", hide_index=True)
+    tk = pd.DataFrame(diff.get("tickers", []))
+    if not tk.empty:
+        tk = tk[(tk["prev_eval"].abs() >= 10_000) | (tk["cur_eval"].abs() >= 10_000)]  # 먼지 잔량 제외
+    if not tk.empty:
+        st.markdown("**📋 종목별 변화 (가격효과 vs 매매효과)**")
+        tk = tk.sort_values("price_effect")
+        view = pd.DataFrame({
+            "종목": [_short_name(n, t) for n, t in zip(tk["name"], tk["ticker"])],
+            "상태": tk["status"],
+            "수량": [f"{a:,.4g} → {b:,.4g}" for a, b in zip(tk["prev_qty"], tk["cur_qty"])],
+            "가격 변화": tk["price_chg"].map(lambda v: f"{v*100:+.1f}%" if pd.notna(v) else "—"),
+            "가격효과": tk["price_effect"].map(_eok),
+            "매매효과": tk["qty_effect"].map(_eok),
+            "현재 평가": tk["cur_eval"].map(fmt_short),
+        })
+        st.dataframe(view, width="stretch", hide_index=True)
+
+
+def render_stress(stress: dict, net: float) -> None:
+    st.subheader("🧪 시나리오 스트레스 테스트")
+    st.caption("시장이 이렇게 움직이면 내 투자자산은? — 종목별 민감도(레버리지·베타) 기반 추정치")
+    if not stress:
+        st.info("투자자산이 없습니다.")
+        return
+    names = list(stress.keys())
+    vals = [stress[n]["delta"] for n in names]
+    fig = go.Figure(go.Bar(
+        x=vals, y=names, orientation="h",
+        marker_color=["#2BA84A" if v >= 0 else "#E03131" for v in vals],
+        text=[f"{_eok(v)} ({stress[n]['pct']*100:+.1f}%)" for n, v in zip(names, vals)],
+        textposition="outside", cliponaxis=False,
+        customdata=[f"{v:+,.0f}원 · {stress[n]['desc']}" for n, v in zip(names, vals)],
+        hovertemplate="%{y}<br>%{customdata}<extra></extra>",
+    ))
+    m = max(abs(v) for v in vals) or 1
+    fig.update_layout(height=60 + 42 * len(names), yaxis=dict(autorange="reversed"),
+                      xaxis=dict(range=[-m * 1.55, m * 1.55], visible=False),
+                      margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(fig, width="stretch")
+    pick = st.selectbox("시나리오별 종목 영향 보기", names, index=names.index("복합 하락")
+                        if "복합 하락" in names else 0, key="stress_pick")
+    det = pd.DataFrame(stress[pick]["detail"])
+    if not det.empty:
+        st.caption(f"📌 {stress[pick]['desc']}")
+        det = det[det["delta"].abs() >= 1]
+        st.dataframe(pd.DataFrame({
+            "종목": [_short_name(n, t) for n, t in zip(det["name"], det["ticker"])],
+            "예상 변화": det["delta"].map(_eok),
+        }), width="stretch", hide_index=True)
+    st.caption("⚠️ 레버리지 ETF는 기간 중 등락 경로에 따라 실제 결과가 추정과 크게 다를 수 있습니다.")
+
+
+def render_exposure(diag: dict, s: dict) -> None:
+    ex = diag.get("exposure", {})
+    exp, ratio = ex.get("exp", {}), ex.get("ratio", {})
+    tiles = [("🎯 총 실효 노출", f"{diag.get('eff_ratio', 0):.2f}×",
+              f"{sum(exp.values())/1e8:.2f}억 / 순자산 {fmt_short(s['total_eval'])}", True)]
+    for k, nm in [("NDX", "나스닥 노출"), ("SEMI", "반도체 노출"), ("CRYPTO", "코인 노출")]:
+        tiles.append((nm, f"{ratio.get(k, 0):.2f}×", f"{exp.get(k, 0)/1e8:.2f}억", False))
+    tiles.append(("레버리지 ETF 비중", f"{diag.get('lev_share', 0)*100:.0f}%", "투자자산 대비", False))
+    tiles.append(("가중 레버리지", f"{diag.get('weighted_lev', 0):.2f}×", "평가액 가중 평균 배수", False))
+    tiles.append(("현금 비중", f"{diag.get('cash_share', 0)*100:.1f}%", "투자계좌 내", False))
+    _html_block('<div class="grid-tiles">' + "".join(
+        f'<div class="tile{" me" if me else ""}"><div class="t-l">{esc(a)}</div>'
+        f'<div class="t-v">{esc(b)}</div><div class="t-s">{esc(c)}</div></div>'
+        for a, b, c, me in tiles) + "</div>")
+    st.caption("실효 노출 = 평가액 × 레버리지·민감도. 1.0× 초과면 순자산보다 큰 금액이 시장에 노출된 상태")
+
+
+def render_rebalance_chart(rebal: pd.DataFrame, accent: str) -> None:
+    if rebal is None or rebal.empty:
+        st.info("⚖️ portfolio.xlsx의 meta 시트에 목표비중(%)을 채우면 현재 vs 목표 비교가 표시됩니다.")
+        return
+    d = rebal[rebal["목표비중"] > 0].copy()
+    if d.empty:
+        return
+    d = d.sort_values("현재비중", ascending=True)
+    names = [_short_name(n, t) for n, t in zip(d["종목명"], d["티커"])]
+    fig = go.Figure()
+    for y, a, b in zip(names, d["현재비중"] * 100, d["목표비중"] * 100):
+        fig.add_trace(go.Scatter(x=[a, b], y=[y, y], mode="lines",
+                                 line=dict(color="rgba(128,128,128,.45)", width=3),
+                                 hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Scatter(x=d["목표비중"] * 100, y=names, mode="markers", name="목표",
+                             marker=dict(symbol="diamond", size=11, color="#ADB5BD"),
+                             hovertemplate="%{y} 목표 %{x:.1f}%<extra></extra>"))
+    fig.add_trace(go.Scatter(x=d["현재비중"] * 100, y=names, mode="markers+text", name="현재",
+                             marker=dict(size=12, color=accent),
+                             text=[f"{v:.0f}%" for v in d["현재비중"] * 100],
+                             textposition="middle right", cliponaxis=False,
+                             hovertemplate="%{y} 현재 %{x:.1f}%<extra></extra>"))
+    fig.update_layout(height=70 + 30 * len(d), xaxis=dict(ticksuffix="%", title=None),
+                      yaxis=dict(type="category"),
+                      margin=dict(l=10, r=40, t=30, b=10),
+                      legend=dict(orientation="h", y=1.08, x=1, xanchor="right"))
+    st.plotly_chart(fig, width="stretch")
+    st.caption("● 현재 비중 · ◆ 목표 비중 (meta 시트). 선이 길수록 목표와 멀어진 종목")
+
+
+# ---------- 왜 움직였나 ----------
+_INVERSE = {"^VIX", "^TNX", "DX-Y.NYB"}
+_NEUTRAL = {"KRW=X", "GC=F", "CL=F"}
+
+
+def render_why_moved(s: dict, invest_rows: pd.DataFrame) -> None:
+    st.subheader("🔍 왜 움직였나 — 시장 등락과 원인 이슈")
+    per = st.segmented_control("기간", ["오늘", "이번주", "이번달"], default="이번주",
+                               key="why_period", label_visibility="collapsed") or "이번주"
+    with st.spinner("시장 데이터·뉴스 분석 중…"):
+        moves = period_moves(per)
+        heads = korean_headlines(per)
+        themes = theme_breakdown(heads)
+
+    my = {"오늘": float(s.get("day_change", 0) or 0), "이번주": float(s.get("week_change", 0) or 0)}
+    try:
+        my["이번달"] = _weighted_change(invest_rows, "월간") if not invest_rows.empty else 0.0
+    except Exception:
+        my["이번달"] = 0.0
+    mv = my.get(per, 0.0)
+    my_lab = {"오늘": "최근 1일", "이번주": "최근 1주", "이번달": "최근 1개월"}[per]
+
+    tiles = [f'<div class="tile me"><div class="t-l">💼 내 투자자산 ({my_lab})</div>'
+             f'<div class="t-v {_cls(mv)}">{mv*100:+.1f}%</div>'
+             f'<div class="t-s">약 {esc(_eok(float(s.get("total_eval", 0)) * mv))}</div></div>']
+    for m in moves:
+        val = m["pct"] if m["unit"] == "pct" else m["diff"]
+        cls = "" if m["symbol"] in _NEUTRAL else (_cls(-val) if m["symbol"] in _INVERSE else _cls(val))
+        tiles.append(f'<div class="tile"><div class="t-l">{esc(m["label"])}</div>'
+                     f'<div class="t-v {cls}">{esc(fmt_move(m))}</div>'
+                     f'<div class="t-s">{esc(fmt_level(m))} · {m["base_date"]}→{m["last_date"]}</div></div>')
+    _html_block('<div class="grid-tiles">' + "".join(tiles) + "</div>")
+
+    if moves:
+        st.info("📌 " + story_summary(per, moves, themes))
+
+    if not themes:
+        st.caption("뉴스 헤드라인을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")
+        return
+    now = datetime.now().astimezone()
+    cards = []
+    for t in themes:
+        tone_cls = "red" if t["tone"] == "하락 우세" else ("green" if t["tone"] == "상승 우세" else "gray")
+        hls = []
+        for h in t["items"]:
+            ago = ""
+            if h.get("published"):
+                try:
+                    hrs = (now - datetime.fromisoformat(h["published"])).total_seconds() / 3600
+                    ago = f"{hrs:.0f}시간 전" if hrs < 48 else f"{hrs/24:.0f}일 전"
+                except Exception:
+                    pass
+            hls.append(f'<div class="hl"><a href="{esc(h["link"])}" target="_blank">{esc(h["title"])}</a> '
+                       f'<span class="src">{esc(h.get("source", ""))} · {ago}</span></div>')
+        cards.append(f'<div class="bcard"><div class="bc-title"><span>{esc(t["label"])}</span>'
+                     f'<span><span class="pill gray">{t["count"]}건</span>'
+                     f'<span class="pill {tone_cls}">{esc(t["tone"])}</span></span></div>'
+                     f'{"".join(hls)}</div>')
+    st.markdown(f"**🧩 원인 테마 TOP {len(themes)}** — 한국어 헤드라인 {len(heads)}건 자동 분류")
+    _html_block('<div class="grid2">' + "".join(cards) + "</div>")
+    st.caption("출처: 구글뉴스(국내 언론) · 키워드 기반 자동 분류라 일부 부정확할 수 있음 · 30분 갱신")
+
+
+# ---------- 일정 ----------
+def _event_row(e: dict) -> str:
+    hot = " hot" if e["d_day"] <= 3 and e["imp"] >= 3 else ""
+    stars = "★" * e["imp"] + "☆" * (3 - e["imp"])
+    pills = ""
+    if e.get("mine"):
+        pills += '<span class="pill acc">내 자산 영향</span>'
+    for t in e.get("tags", [])[:3]:
+        if t != "금리":
+            pills += f'<span class="pill gray">{esc(t)}</span>'
+    when = f"{e['time']} KST" if e.get("time") else "시간 미정"
+    note = f" · {esc(e['note'])}" if e.get("note") else ""
+    return (f'<div class="ev-row"><div class="ev-d"><div class="dday{hot}">{dday_label(e["d_day"])}</div>'
+            f'<div class="ev-date">{fmt_event_date(e["date"])}</div></div>'
+            f'<div><div class="ev-title">{e["icon"]} {esc(e["title"])}<span class="stars">{stars}</span>{pills}</div>'
+            f'<div class="ev-note">{esc(when)}{note}</div></div></div>')
+
+
+def render_events_section(events: list[dict]) -> None:
+    st.subheader("📅 다가오는 핵심 일정 — 미국·반도체·코인")
+    c1, c2 = st.columns([3, 2])
+    with c1:
+        view = st.segmented_control("보기", ["⭐ 핵심만", "🎯 내 자산 영향", "전체"],
+                                    default="⭐ 핵심만", key="ev_view",
+                                    label_visibility="collapsed") or "⭐ 핵심만"
+    with c2:
+        days = st.segmented_control("기간", ["2주", "1개월", "2개월"], default="1개월",
+                                    key="ev_days", label_visibility="collapsed") or "1개월"
+    lim = {"2주": 14, "1개월": 31, "2개월": 62}[days]
+    evs = [e for e in events if e["d_day"] <= lim]
+    if view.startswith("⭐"):
+        evs = [e for e in evs if e["imp"] >= 3 or (e["imp"] >= 2 and e.get("mine"))]
+    elif view.startswith("🎯"):
+        evs = [e for e in evs if e.get("mine")]
+    if not evs:
+        st.info("해당 조건의 일정이 없습니다.")
+        return
+    nxt = next((e for e in evs if e["imp"] >= 3), evs[0])
+    st.success(f"⏭️ 다음 핵심 이벤트: **{fmt_event_date(nxt['date'])} {nxt['title']}** "
+               f"({dday_label(nxt['d_day'])}{', ' + nxt['time'] + ' KST' if nxt.get('time') else ''})")
+    from core.events import today_kst
+    from datetime import timedelta as _td
+    t0 = today_kst()
+    wk0 = t0 - _td(days=t0.weekday())
+    html_parts, cur_wk = [], None
+    for e in evs:
+        wk = (e["date"] - wk0).days // 7
+        if wk != cur_wk:
+            cur_wk = wk
+            ws = wk0 + _td(days=7 * wk)
+            lab = "이번주" if wk == 0 else ("다음주" if wk == 1 else f"{wk}주 뒤")
+            html_parts.append(f'<div class="ev-week">{lab} · {ws.month}/{ws.day} – '
+                              f'{(ws + _td(days=6)).month}/{(ws + _td(days=6)).day}</div>')
+        html_parts.append(_event_row(e))
+    _html_block('<div class="bcard">' + "".join(html_parts) + "</div>")
+    st.caption("★★★ 시장 전체를 흔드는 일정 · 시각은 한국시간(KST) · 실적일은 미국 날짜 기준(장전/장후 미정) · "
+               "출처: 연준·BLS 공식 일정, ForexFactory, Yahoo Finance")
+
+
+def render_econ_week() -> None:
+    ff = economic_calendar_this_week()
+    if not ff:
+        return
+    with st.expander(f"📊 이번주 미국 경제지표 결과·예상치 ({len(ff)}건)", expanded=False):
+        rows = [{"날짜": fmt_event_date(e["date"]), "시각(KST)": e["time"],
+                 "지표": e["title"], "중요": "★" * e["imp"],
+                 "실제": e.get("actual") or "—", "예상": e.get("forecast") or "—",
+                 "이전": e.get("previous") or "—"} for e in ff]
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+        st.caption("실제치가 예상보다 '물가는 높게 / 고용은 강하게' 나오면 금리 인상 우려 ↑ (기술주·코인에 부담)")
+
+
+# ---------- 전망 ----------
+def render_outlook(sig: dict, fg: dict, events: list[dict], stress: dict) -> None:
+    st.subheader("🔮 앞으로 — 데이터가 가리키는 방향")
+    st.caption("예측이 아니라 ① 현재 신호 ② 과거 비슷한 상황 이후 실제 결과 ③ 시나리오별 내 자산 영향을 보여줍니다.")
+    rows = signal_board(sig, fg)
+    if rows:
+        verdict, sub = board_verdict(rows)
+        body = "".join(f'<div class="sig-row"><span>{r["state"]}</span><span class="nm">{esc(r["name"])}</span>'
+                       f'<span class="vl">{esc(r["value"])}</span><span class="mn">{esc(r["meaning"])}</span></div>'
+                       for r in rows)
+        _html_block(f'<div class="bcard acc"><div class="bc-title"><span>📡 시장 신호판: {esc(verdict)}</span>'
+                    f'<span class="pill gray">{esc(sub)}</span></div>{body}</div>')
+    else:
+        st.info("시장 신호 데이터를 불러오지 못했습니다.")
+
+    st.markdown("##### 📚 과거 비슷한 상황 이후엔 어떻게 됐나")
+    with st.spinner("과거 수십 년 데이터 분석 중… (최초 1회)"):
+        studies = analog_studies(sig) if sig else []
+    if studies:
+        cards = []
+        for stu in studies:
+            pill = '<span class="pill red">지금 해당</span>' if stu["active"] else '<span class="pill gray">참고</span>'
+            trs = "".join(
+                f'<tr><td>{lab}</td><td class="{_cls(v["median"])}">{v["median"]*100:+.1f}%</td>'
+                f'<td>{v["win"]*100:.0f}%</td><td class="neg">{v["worst"]*100:+.0f}%</td>'
+                f'<td class="pos">{v["best"]*100:+.0f}%</td></tr>'
+                for lab, v in stu["stats"].items())
+            cards.append(
+                f'<div class="bcard {"red" if stu["active"] else "gray"}"><div class="bc-title">'
+                f'<span>{esc(stu["name"])}</span>{pill}</div>'
+                f'<div class="bc-body">{esc(stu["desc"])} · 과거 {stu["n"]}회 · {esc(stu["now"])}<br>'
+                f'최근 사례: {esc(", ".join(stu["recent"]))}</div>'
+                f'<table class="mini"><tr><th>이후</th><th>중간값</th><th>상승확률</th><th>최악</th><th>최고</th></tr>'
+                f'{trs}</table></div>')
+        _html_block('<div class="grid2">' + "".join(cards) + "</div>")
+        st.caption("에피소드 = 조건을 처음 충족한 날(60거래일 내 중복 제외) · 수익률은 기초지수 기준 "
+                   "(SOXL 같은 3배 ETF는 대략 3배 + 변동성 손실) · 과거가 미래를 보장하지 않음")
+    else:
+        st.info("과거 데이터 분석을 불러오지 못했습니다.")
+
+    st.markdown("##### 🧭 시나리오 3가지 — 이런 일이 생기면")
+    scs = scenarios(sig or {}, events, stress)
+    cards = []
+    for sc in scs:
+        imp = sc.get("impact") or {}
+        imp_txt = (f'내 투자자산 영향(추정): <b class="{_cls(imp.get("delta", 0))}">{esc(_eok(imp.get("delta", 0)))} '
+                   f'({imp.get("pct", 0)*100:+.1f}%)</b>') if imp else ""
+        lvl = "green" if sc["name"].startswith("🟢") else ("red" if sc["name"].startswith("🔴") else "yellow")
+        lis = "".join(f"<li>{esc(t)}</li>" for t in sc["triggers"])
+        cards.append(f'<div class="bcard {lvl}"><div class="bc-title"><span>{esc(sc["name"])}</span></div>'
+                     f'<div class="bc-body"><ul>{lis}</ul>👀 체크: {esc(sc["watch"])}<br>{imp_txt}</div></div>')
+    _html_block('<div class="grid2">' + "".join(cards) + "</div>")
+
+
+def render_claude_note() -> None:
+    n = CLAUDE_NOTE
+    pts = "".join(f"<li>{_md_bold(p)}</li>" for p in n["points"])
+    ahead = "".join(f"<li>{_md_bold(p)}</li>" for p in n["ahead"])
+    srcs = " · ".join(f'<a href="{esc(u)}" target="_blank">{esc(t)}</a>' for t, u in n["sources"])
+    _html_block(f'<div class="bcard acc"><div class="bc-title"><span>📝 Claude 시장 노트 — {esc(n["title"])}</span>'
+                f'<span class="pill gray">작성 {esc(n["date"])}</span></div>'
+                f'<div class="bc-body"><b>무엇이 시장을 흔들었나</b><ul>{pts}</ul>'
+                f'<b>앞으로 볼 것</b><ul>{ahead}</ul>'
+                f'<span class="hl"><span class="src">출처: {srcs}</span></span><br>'
+                f'<i>작성 시점 이후 상황은 위의 자동 뉴스·신호판이 실시간 반영합니다. 투자 자문 아님.</i></div></div>')
 
 
 def _theme_controls() -> tuple[str, str]:
@@ -1442,7 +2097,7 @@ def _theme_controls() -> tuple[str, str]:
         picked = st.selectbox("색감", names, index=names.index(cur_name))
         st.session_state.accent = next(a for a, n in ACCENT_PRESETS if n == picked)
 
-        if st.button("🎲 색감 랜덤 추천", use_container_width=True):
+        if st.button("🎲 색감 랜덤 추천", width="stretch"):
             st.session_state.accent = _random.choice(ACCENT_PRESETS)[0]
             st.rerun()
         st.divider()
@@ -1455,8 +2110,8 @@ def main() -> None:
     mode, accent = _theme_controls()
     inject_theme(mode, accent)
 
-    st.title("📊 내 포트폴리오")
-    st.caption(f"마지막 조회: {datetime.now():%Y-%m-%d %H:%M:%S}")
+    st.markdown(f"## 📊 내 포트폴리오 <span class='pill gray'>{_now_kst():%m/%d %H:%M} 조회</span>",
+                unsafe_allow_html=True)
 
     # ---------- 데이터 로드 (로컬 RAW 또는 클라우드 JSON) ----------
     usd_krw, fx_err = load_fx_safe()
@@ -1524,44 +2179,98 @@ def main() -> None:
         from core.history_extra import load_total_history as _lth
         total_hist = _lth()
 
-    # ---------- 상단 헤더 (항상 표시) ----------
-    render_top_header(s, fs, fg, vix_price, regime, temp)
-    st.divider()
+    # ---------- 공통 계산 ----------
+    diff = data.get("raw_diff")
+    sync = None
+    if not cloud:
+        try:
+            from core.datasource import cloud_sync_status
+            sync = cloud_sync_status()
+        except Exception:
+            sync = None
+    holding_tk = set(invest_rows["티커"].astype(str).str.upper()) if not invest_rows.empty else set()
+    net = float(s.get("total_eval", 0) or 0)
+    rebal = rebalancing_signals(invest_rows, meta_df, threshold=0.05)
+    stress = stress_test(invest_rows, net)
 
-    # ---------- 탭 6개 ----------
-    tab_summary, tab_market, tab_stock, tab_rebal, tab_risk, tab_trend = st.tabs([
-        "📊 요약",
-        "🌐 시장",
-        "🩺 종목 분석",
-        "⚖️ 리밸런싱",
-        "📐 리스크",
-        "📉 추이·보유",
-    ])
+    def _diag(sig: dict | None, events: list[dict]) -> dict:
+        return direction_checks(s=s, invest_rows=invest_rows, all_rows=all_rows_agg,
+                                total_hist=total_hist, vix=vix_price, fg=fg, sig=sig,
+                                events=events, rebal=rebal, stress=stress)
 
-    # ===== 📊 요약 =====
-    with tab_summary:
+    # ---------- 상단 (항상 표시): 업로드 알림 · 히어로 · 시장 컨디션 ----------
+    render_sync_banner(cloud, data, sync)
+    render_hero(s, fs, diff, raw_ts, cloud, data.get("generated_at"))
+    render_market_strip(fg, vix_price, regime, temp)
+
+    # ---------- 메뉴 (선택한 화면만 계산 → 빠름) ----------
+    NAV = ["🏠 홈", "🧭 내 자산 진단", "📰 시장·이슈", "📅 일정·전망", "🔍 종목", "📈 추이·보유"]
+    sel = st.segmented_control("메뉴", NAV, default=NAV[0], key="nav",
+                               label_visibility="collapsed")
+    if sel is None:
+        sel = st.session_state.get("nav_last", NAV[0])
+    st.session_state["nav_last"] = sel
+
+    # ===== 🏠 홈 =====
+    if sel == NAV[0]:
+        events_fast = upcoming_events(45, holding_tk, include_network=False)
+        diag = _diag(None, events_fast)
+        render_briefing(briefing(diff=diff, market=market_data, vix=vix_price, fg=fg,
+                                 events=events_fast, diag=diag))
         st.markdown("##### 📈 총자산 추이 (과거 기록 + 현재)")
         render_total_trend(total_hist, accent, compact=True)
         st.divider()
-        st.markdown("##### 🏦 자산 합계")
-        render_kpis(s)
+        st.markdown("##### 🧭 방향성 한눈에")
+        render_direction(diag, compact=True)
+        st.caption("전체 점검표·스트레스 테스트는 **🧭 내 자산 진단** 메뉴에서 볼 수 있어요.")
         st.divider()
-        render_family_panel(family_df, float(s.get("total_eval", 0)))
+        st.markdown("##### 📄 직전 RAW 대비 — 무엇이 내 자산을 움직였나")
+        render_raw_waterfall(diff, accent, compact=True)
         st.divider()
-        st.markdown("##### 🥧 자산군 비중")
+        st.markdown("##### 🥧 자산 구성")
         col_a, col_b = st.columns(2)
         with col_a:
-            from core.calc import allocation_by_class as _ac, allocation_by_kind as _ak
             class_colors = {"해외주식": "#4C78A8", "암호화폐": "#F58518", "현금": "#54A24B"}
-            _pie(_ac(all_rows_agg), "분류", "자산군", color_map=class_colors)
+            _pie(allocation_by_class(all_rows_agg), "분류", "자산군", color_map=class_colors)
         with col_b:
-            kind_colors = {"개별주": "#4C78A8", "ETF": "#72B7B2", "코인": "#F58518", "현금": "#54A24B"}
-            _pie(_ak(all_rows_agg), "종류", "종류별", color_map=kind_colors)
-        st.divider()
+            _pie(allocation_by_bucket(all_rows_agg), "자산버킷", "자산버킷 (성격별)")
         render_top_and_pnl(invest_rows, accent)
+        with st.expander("👨‍👩‍👧 가족 자산 · 운용 총자산 상세", expanded=False):
+            render_family_panel(family_df, net)
 
-    # ===== 🌐 시장 (무거운 뉴스·버블은 이 탭에서만 계산 → 첫 로딩 속도 개선) =====
-    with tab_market:
+    # ===== 🧭 내 자산 진단 =====
+    elif sel == NAV[1]:
+        with st.spinner("시장 신호 불러오는 중…"):
+            sig = market_signals()
+        events_fast = upcoming_events(30, holding_tk, include_network=False)
+        diag = _diag(sig, events_fast)
+        st.caption("RAW를 올릴 때마다 자동으로 다시 계산되는 내 포트폴리오 점검표입니다. "
+                   "매수·매도 권유가 아닌 판단 보조 정보예요.")
+        render_direction(diag)
+        st.divider()
+        st.subheader("📄 이번 RAW 변화 상세")
+        render_raw_waterfall(diff, accent)
+        render_raw_change_tables(diff)
+        st.divider()
+        render_stress(stress, net)
+        st.divider()
+        st.subheader("🎯 노출 분석 — 실제로 시장에 얼마나 걸려 있나")
+        diag["weighted_lev"] = float(lev.get("weighted", 0) or 0)
+        render_exposure(diag, s)
+        render_concentration(invest_rows)
+        st.divider()
+        st.subheader("⚖️ 목표비중 vs 현재")
+        render_rebalance_chart(rebal, accent)
+        render_rebalancing(invest_rows, meta_df)
+        st.divider()
+        st.subheader("💱 환율 노출 · 리스크 지표")
+        render_currency_exposure(all_rows_agg, usd_krw)
+        render_risk_panel(snapshots_df)
+
+    # ===== 📰 시장·이슈 =====
+    elif sel == NAV[2]:
+        render_why_moved(s, invest_rows)
+        st.divider()
         render_market_context()
         st.divider()
         with st.spinner("시장 분석 불러오는 중…"):
@@ -1576,49 +2285,40 @@ def main() -> None:
             bubble = compute_bubble_index(fg, news_items, vix_price,
                                           portfolio_ai_share=ai_share,
                                           portfolio_leverage=lev.get("weighted", 1.0))
-        render_bubble(bubble)
-        st.divider()
         render_fear_greed_detail(fg)
+        st.divider()
+        render_bubble(bubble)
         st.divider()
         render_news(news_items)
 
-    # ===== 🩺 종목 분석 =====
-    with tab_stock:
+    # ===== 📅 일정·전망 =====
+    elif sel == NAV[3]:
+        with st.spinner("일정·실적 발표일 불러오는 중…"):
+            events = upcoming_events(62, holding_tk, include_network=True)
+            sig = market_signals()
+        render_events_section(events)
+        render_econ_week()
+        st.divider()
+        render_outlook(sig, fg, events, stress)
+        st.divider()
+        render_claude_note()
+
+    # ===== 🔍 종목 =====
+    elif sel == NAV[4]:
         render_change_heatmap(invest_rows)
         st.divider()
         render_diagnostics(invest_rows)
 
-    # ===== ⚖️ 리밸런싱 =====
-    with tab_rebal:
-        render_rebalancing(invest_rows, meta_df)
-        st.divider()
-        st.markdown("##### 🥧 자산버킷 · 종류별 비중")
-        col1, col2 = st.columns(2)
-        with col1:
-            _pie(allocation_by_bucket(all_rows_agg), "자산버킷", "자산버킷 (성격별)")
-        with col2:
-            kind_colors = {"개별주": "#4C78A8", "ETF": "#72B7B2", "코인": "#F58518", "현금": "#54A24B"}
-            _pie(allocation_invest_only(all_rows_agg), "분류", "주식 vs 코인 (투자만)",
-                 color_map={"해외주식": "#4C78A8", "암호화폐": "#F58518"})
-
-    # ===== 📐 리스크 =====
-    with tab_risk:
-        render_concentration(invest_rows)
-        render_leverage_kpis(invest_rows, s)
-        st.divider()
-        render_currency_exposure(all_rows_agg, usd_krw)
-        st.divider()
-        render_risk_panel(snapshots_df)
-
-    # ===== 📉 추이·보유 =====
-    with tab_trend:
+    # ===== 📈 추이·보유 =====
+    else:
         render_account_history(acc_hist)
         st.divider()
-        render_timeseries()
+        render_timeseries(snapshots_df)
         render_monthly_heatmap(snapshots_df)
         st.divider()
         render_table(stock_rows, coin_rows, cash_rows)
 
+    st.caption("ⓘ 모든 분석은 공개 시세·뉴스와 내 RAW 데이터 기반의 참고 정보이며 투자 자문이 아닙니다.")
     # 좌측 하단 실시간 인디케이터 (항상 표시)
     render_live_dot()
 

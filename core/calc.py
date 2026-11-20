@@ -81,11 +81,11 @@ def rebalancing_signals(invest_rows: pd.DataFrame, meta_df: pd.DataFrame,
         if target == 0:
             status = "⚪ 목표 미설정"
         elif abs(diff_pp) < threshold:
-            status = "🟢 유지"
+            status = "🟢 범위 내"
         elif diff_pp > 0:
-            status = "🔴 매도"
+            status = "🔺 목표 초과"
         else:
-            status = "🟢 매수"
+            status = "🔻 목표 미달"
         rows.append({
             "종목명": r["종목명"],
             "티커": ticker,
@@ -739,14 +739,27 @@ def risk_metrics(snapshots_df: pd.DataFrame, risk_free_rate: float = 0.03) -> di
     if len(s) < 2:
         return out
 
-    rets = s["total_eval"].pct_change().dropna()
-    if rets.empty:
+    s["date"] = pd.to_datetime(s["date"])
+    # 같은 RAW 값이 여러 날 반복 저장된 행은 제거 (RAW 기반이라 값이 안 바뀐 날)
+    s = s[s["total_eval"].diff().fillna(1) != 0]
+    rets_all = s["total_eval"].pct_change().dropna()
+    if rets_all.empty:
         return out
+    gaps = s["date"].diff().dt.days.iloc[1:]
 
-    n = len(rets)
-    out["n_days"] = int(n)
-    out["best_day"] = float(rets.max())
-    out["worst_day"] = float(rets.min())
+    out["n_days"] = int(len(rets_all))
+    out["n_obs"] = int(len(s))
+    out["avg_gap"] = float(gaps.mean()) if len(gaps) else 0.0
+    out["best_day"] = float(rets_all.max())   # 기록 간 최대 상승
+    out["worst_day"] = float(rets_all.min())  # 기록 간 최대 하락
+
+    # 일별 지표(변동성·Sharpe 등)는 '간격 4일 이하' 기록이 10개 이상일 때만 의미 있음
+    rets = rets_all[(gaps <= 4).values]
+    out["dense"] = len(rets) >= 10
+    if not out["dense"]:
+        series = s["total_eval"].astype(float)
+        out["mdd"] = float(((series - series.cummax()) / series.cummax()).min())
+        return out
     out["win_rate"] = float((rets > 0).mean())
 
     std = float(rets.std())
